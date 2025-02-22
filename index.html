@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Capture</title>
+    <style>
+        #recordButton {
+            width: 100px;
+            height: 100px;
+            background-color: blue;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body>
+    <button id="recordButton"></button>
+
+    <script>
+        let button = document.getElementById('recordButton');
+        let isRecording = false;
+        let mediaRecorder;
+        const audioChunks = [];
+        let socket;
+
+        button.addEventListener('click', async () => {
+            if (!isRecording) {
+                startRecording();
+                button.style.backgroundColor = 'red';
+            } else {
+                stopRecording();
+                button.style.backgroundColor = 'blue';
+            }
+            isRecording = !isRecording;
+        });
+
+        async function startRecording() {
+            try {
+                // 建立 WebSocket 连接
+                socket = new WebSocket('ws://192.168.31.250:8000/asr');
+                socket.onopen = () => console.log('WebSocket connection established.');
+
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data && event.data.size > 0) { // 确保有数据
+                        sendAudioData(event.data); // 使用WebSocket发送音频数据
+                    }
+                };
+
+                mediaRecorder.start();
+            } catch (err) {
+                console.error("Failed to get microphone access:", err);
+                alert("Failed to get microphone access: " + err.message);
+            }
+        }
+
+        function stopRecording() {
+            mediaRecorder.stop();
+
+            // 关闭 WebSocket 连接
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.close();
+            }
+        }
+
+        function sendAudioData(chunk) {
+            // 发送Blob对象前，先将其转换为ArrayBuffer
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    const arrayBuffer = reader.result;
+                    socket.send(arrayBuffer); // 使用WebSocket发送音频数据
+                }
+            };
+            reader.readAsArrayBuffer(chunk);
+        }
+    </script>
+</body>
+</html>
