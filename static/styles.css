@@ -1,0 +1,64 @@
+html, body {
+    touch-action: none; /* 禁止所有触摸手势 */
+    overflow: hidden; /* 隐藏溢出的内容，防止滚动 */
+}
+
+body {
+    display: flex;
+    justify-content: center; /* 修正了拼写错误 */
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+}
+
+.container {
+    text-align: center;
+}
+
+.control-pad {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 100px);
+    gap: 5px;
+}
+
+.cell {
+    width: 100px;
+    height: 100px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #ccc;
+    border: 1px solid #999;
+    font-size: 18px;
+}
+
+.special img {
+    width: 50%; /* 调整SVG图标的大小 */
+    height: auto;
+    transition: transform 0.2s ease, filter 0.2s ease; /* 增加滤镜过渡效果 */
+}
+
+.rotate90 img {
+    transform: rotate(90deg); /* 旋转180度 */
+}
+
+.rotate180 img {
+    transform: rotate(180deg); /* 旋转180度 */
+}
+
+/* 点击效果 */
+.clickable {
+    transition: transform 0.2s ease, box-shadow 0.2s ease; /* 增加阴影过渡效果 */
+}
+
+.clickable:active img {
+    transform: scale(0.85); /* 稍微增大缩放比例 */
+    filter: brightness(0.9); /* 减少亮度以增强点击反馈 */
+}
+
+.clickable:active {
+    box-shadow: 0 0 15px rgba(0,0,0,0.3); /* 添加阴影效果 */
+}
+

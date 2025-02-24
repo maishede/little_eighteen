@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Panel</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<div class="container">
+    <div id="control-pad" class="control-pad">
+        <!-- 第一排 -->
+        <div class="cell special clickable" onclick="sendCommand('move_left')"><img src="/static/svgs/left_up.svg" alt="前进"></div>
+        <div class="cell special clickable" onclick="sendCommand('forward')"><img src="/static/svgs/up.svg" alt="前进"></div>
+        <div class="cell special clickable rotate90" onclick="sendCommand('move_right')"><img src="/static/svgs/left_up.svg" alt="前进"></div>
+        <!-- 第二排 -->
+        <div class="cell special clickable" onclick="sendCommand('left')"><img src="/static/svgs/left.svg" alt=""></div>
+        <div class="cell special clickable" onclick="sendCommand('stop')"><img src="/static/svgs/stop.svg" alt=""></div>
+        <div class="cell special clickable rotate180" onclick="sendCommand('right')"><img src="/static/svgs/left.svg" alt="">
+        </div>
+        <!-- 第三排 -->
+        <div class="cell white_back"></div>
+        <div class="cell special clickable rotate180" onclick="sendCommand('back')"><img src="/static/svgs/up.svg" alt="后退">
+        </div>
+        <div class="cell white_back"></div>
+    </div>
+</div>
+<script src="/static/script.js"></script>
+</body>
+</html>

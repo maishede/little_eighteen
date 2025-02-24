@@ -42,7 +42,6 @@ async def send_websocket(websocket_recv, websocket_send):
         while True:
             # 接收用户字节流信息
             data = await websocket_recv.receive_bytes()
-            print(data)
             # 将用户字节流发送给asr服务端
             await websocket_send.send(data)
             # 和前端约定以\n\n作为用户断开标识
