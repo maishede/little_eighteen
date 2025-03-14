@@ -1,0 +1,12 @@
+[Unit]
+Description=little_18
+After=network.target
+
+[Service]
+WorkingDirectory=/home/pi/api/little_eighteen
+ExecStart=/usr/bin/python3 app/main.py
+Restart=always
+ExecStartPre=/bin/sleep 10
+
+[Install]
+WantedBy=multi-user.target

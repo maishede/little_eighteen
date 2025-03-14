@@ -1,0 +1,1 @@
+# python funasr_wss_client.py --host 192.168.31.157 --port 10096 --mode 2pass

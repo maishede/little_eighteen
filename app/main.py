@@ -14,6 +14,7 @@ import uvicorn
 from app.utils.regex_commend import CommandHandler
 import threading
 from fastapi.staticfiles import StaticFiles
+import cv2
 
 app = FastAPI()
 handle = CommandHandler()
@@ -76,6 +77,32 @@ async def cmd(request: Request):
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+
+
+# 模拟摄像头状态
+camera_on = False
+
+def generate_frames():
+    global camera_on
+    cap = cv2.VideoCapture(0)
+    while True:
+        if not camera_on:
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + b'' + b'\r\n')
+            continue
+        success, frame = cap.read()
+        if not success:
+            break
+        else:
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+
+
+
 
 
 if __name__ == '__main__':
