@@ -3,10 +3,14 @@ Description=little_18
 After=network.target
 
 [Service]
+User=pi
+Group=pi
 WorkingDirectory=/home/pi/api/little_eighteen
-ExecStart=/usr/bin/python3 app/main.py
+ExecStart=/home/pi/miniconda3/envs/little_18/bin/python3 app/main.py
 Restart=always
-ExecStartPre=/bin/sleep 10
+ExecStartPre=/bin/sleep 5
+StandardOutput=syslog
+StandardError=syslog
 
 [Install]
 WantedBy=multi-user.target
