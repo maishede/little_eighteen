@@ -1,30 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control Panel</title>
+    <title>宝贝小车控制</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-<div class="container">
-    <div id="control-pad" class="control-pad">
-        <!-- 第一排 -->
-        <div class="cell special clickable" onclick="sendCommand('move_left')"><img src="/static/svgs/left_up.svg" alt="前进"></div>
-        <div class="cell special clickable" onclick="sendCommand('forward')"><img src="/static/svgs/up.svg" alt="前进"></div>
-        <div class="cell special clickable rotate90" onclick="sendCommand('move_right')"><img src="/static/svgs/left_up.svg" alt="前进"></div>
-        <!-- 第二排 -->
-        <div class="cell special clickable" onclick="sendCommand('left')"><img src="/static/svgs/left.svg" alt=""></div>
-        <div class="cell special clickable" onclick="sendCommand('stop')"><img src="/static/svgs/stop.svg" alt=""></div>
-        <div class="cell special clickable rotate180" onclick="sendCommand('right')"><img src="/static/svgs/left.svg" alt="">
+    <div class="app-container">
+        <div class="control-panel">
+            <div class="control-grid">
+                <button class="control-button diagonal-up-left" onclick="sendCommand('move_left_forward')">
+                    <img src="/static/svgs/arrow_diag_up_left.svg" alt="左前">
+                </button>
+                <button class="control-button forward" onclick="sendCommand('forward')">
+                    <img src="/static/svgs/arrow_up.svg" alt="前进">
+                </button>
+                <button class="control-button diagonal-up-right" onclick="sendCommand('move_right_forward')">
+                    <img src="/static/svgs/arrow_diag_up_left.svg" alt="右前">
+                </button>
+
+                <button class="control-button turn-left" onclick="sendCommand('turn_left')">
+                    <img src="/static/svgs/arrow_turn.svg" alt="左转">
+                </button>
+                <button class="control-button stop" onclick="sendCommand('stop')">
+                    <img src="/static/svgs/stop_sign.svg" alt="停止">
+                </button>
+                <button class="control-button turn-right" onclick="sendCommand('turn_right')">
+                    <img src="/static/svgs/arrow_turn.svg" alt="右转">
+                </button>
+
+                <button class="control-button diagonal-down-left" onclick="sendCommand('move_left_back')">
+                    <img src="/static/svgs/arrow_diag_up_left.svg" alt="左后">
+                </button>
+                <button class="control-button backward" onclick="sendCommand('backward')">
+                    <img src="/static/svgs/arrow_up.svg" alt="后退">
+                </button>
+                <button class="control-button diagonal-down-right" onclick="sendCommand('move_right_back')">
+                    <img src="/static/svgs/arrow_diag_up_left.svg" alt="右后">
+                </button>
+            </div>
+
+            <div class="function-row">
+                <button class="control-button strafe-left" onclick="sendCommand('strafe_left')">
+                    <img src="/static/svgs/crab.svg" alt="左横移">
+                </button>
+                <button class="control-button voice-control" id="voiceControlButton">
+                    <img src="/static/svgs/microphone.svg" alt="麦克风">
+                    <span>按住说话</span>
+                </button>
+                <button class="control-button strafe-right" onclick="sendCommand('strafe_right')">
+                    <img src="/static/svgs/crab.svg" alt="右横移">
+                </button>
+            </div>
         </div>
-        <!-- 第三排 -->
-        <div class="cell white_back"></div>
-        <div class="cell special clickable rotate180" onclick="sendCommand('back')"><img src="/static/svgs/up.svg" alt="后退">
+
+        <div class="video-panel" id="videoPanel">
+            <div class="video-placeholder" id="videoPlaceholder">
+                <img src="/static/svgs/camera_sleep.svg" alt="摄像头图标">
+                <span>点击这里开启小车的眼睛 📷</span>
+            </div>
+            <img src="" alt="实时视频流" id="videoFeed" class="hidden">
+            <button class="close-video-button hidden" id="closeVideoButton">X</button>
         </div>
-        <div class="cell white_back"></div>
     </div>
-</div>
-<script src="/static/script.js"></script>
+
+    <script src="/static/script.js"></script>
 </body>
 </html>

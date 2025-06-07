@@ -8,7 +8,7 @@ Group=pi
 WorkingDirectory=/home/pi/api/little_eighteen
 ExecStart=/home/pi/miniconda3/envs/little_18/bin/python3 app/main.py
 Restart=always
-ExecStartPre=/bin/sleep 5
+ExecStartPre=/bin/sleep 1
 StandardOutput=syslog
 StandardError=syslog
 

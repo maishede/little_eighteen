@@ -1,64 +1,306 @@
-html, body {
-    touch-action: none; /* 禁止所有触摸手势 */
-    overflow: hidden; /* 隐藏溢出的内容，防止滚动 */
-}
-
+/* 通用样式 (保持不变) */
 body {
-    display: flex;
-    justify-content: center; /* 修正了拼写错误 */
-    align-items: center;
-    height: 100vh;
     margin: 0;
-    background-color: #f0f0f0;
-}
-
-.container {
-    text-align: center;
-}
-
-.control-pad {
-    margin-top: 20px;
-    display: grid;
-    grid-template-columns: repeat(3, 100px);
-    gap: 5px;
-}
-
-.cell {
-    width: 100px;
-    height: 100px;
+    font-family: 'Comic Sans MS', cursive, sans-serif;
+    background-color: #f0f8ff; /* 浅蓝色背景 */
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: #ccc;
-    border: 1px solid #999;
-    font-size: 18px;
+    min-height: 100vh;
+    overflow: hidden;
 }
 
-.special img {
-    width: 50%; /* 调整SVG图标的大小 */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    height: 100vh;
+    max-width: 600px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+    overflow: hidden;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* --- 顶部控制面板样式 --- */
+.control-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px;
+    background-color: #a7d9f7; /* 可爱蓝色背景 */
+    border-bottom: 5px solid #85c2e9;
+}
+
+.control-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 8px;
+    width: 90%;
+    max-width: 400px;
+    margin-bottom: 10px;
+}
+
+.control-button {
+    width: 100%;
+    height: 80px;
+    /* 基础按钮样式，颜色将在下方按类型覆盖 */
+    border: none;
+    border-radius: 50%;
+    box-shadow: 0 4px 0 0; /* 阴影颜色将由具体按钮颜色决定 */
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.control-button img {
+    width: 70%;
+    height: 70%;
+    object-fit: contain;
+    transform-origin: center center;
+    transition: transform 0.1s ease;
+}
+
+.control-button:active {
+    transform: translateY(2px);
+    /* 阴影颜色将由具体按钮颜色决定 */
+}
+
+/* --- 核心方向按钮颜色 --- */
+
+/* 停止按钮 (Stop) - 柔和的红色 */
+.control-button.stop {
+    background-color: #ff8c8c; /* 柔和的红色 */
+    box-shadow: 0 4px 0 0 #e06b6b;
+    border-radius: 30%;
+}
+.control-button.stop:active {
+    box-shadow: 0 2px 0 0 #e06b6b;
+}
+
+/* 前进 (Forward) - 活力绿色 */
+.control-button.forward {
+    background-color: #8ce8a4; /* 活力绿色 */
+    box-shadow: 0 4px 0 0 #6bcb81;
+}
+.control-button.forward:active {
+    box-shadow: 0 2px 0 0 #6bcb81;
+}
+
+/* 后退 (Backward) - 温暖橙色 */
+.control-button.backward {
+    background-color: #ffb77d; /* 温暖橙色 */
+    box-shadow: 0 4px 0 0 #e0975d;
+}
+.control-button.backward:active {
+    box-shadow: 0 2px 0 0 #e0975d;
+}
+
+/* 左转 (Turn Left) & 右转 (Turn Right) - 明亮黄色 */
+.control-button.turn-left,
+.control-button.turn-right {
+    background-color: #ffe066; /* 明亮黄色 */
+    box-shadow: 0 4px 0 0 #ffc107;
+}
+.control-button.turn-left:active,
+.control-button.turn-right:active {
+    box-shadow: 0 2px 0 0 #ffc107;
+}
+
+/* --- 斜向移动按钮颜色 (与核心方向相似色系，保持协调) --- */
+
+.control-button.diagonal-up-left,
+.control-button.diagonal-up-right,
+.control-button.diagonal-down-left,
+.control-button.diagonal-down-right {
+    background-color: #b7e0d3; /* 柔和的薄荷绿 */
+    box-shadow: 0 4px 0 0 #9dd1c1;
+}
+.control-button.diagonal-up-left:active,
+.control-button.diagonal-up-right:active,
+.control-button.diagonal-down-left:active,
+.control-button.diagonal-down-right:active {
+    box-shadow: 0 2px 0 0 #9dd1c1;
+}
+
+
+/* SVG 旋转和翻转样式 (保持不变) */
+.control-button.backward img {
+    transform: rotate(180deg);
+}
+
+.control-button.turn-right img {
+    transform: rotate(180deg);
+}
+
+.control-button.diagonal-up-right img {
+    transform: scaleX(-1);
+}
+
+.control-button.diagonal-down-left img {
+    transform: rotate(180deg);
+}
+
+.control-button.diagonal-down-right img {
+    transform: scaleX(-1) rotate(180deg);
+}
+
+/* --- 底部功能行样式 --- */
+.function-row {
+    display: flex;
+    justify-content: space-around;
+    width: 90%;
+    max-width: 450px;
+    margin-top: 10px;
+}
+
+/* 横向移动 (Strafe) - 可爱浅蓝色 */
+.function-row .control-button.strafe-left,
+.function-row .control-button.strafe-right {
+    height: 70px;
+    width: 30%;
+    border-radius: 20px;
+    background-color: #a7d9f7; /* 浅蓝色 */
+    box-shadow: 0 4px 0 0 #85c2e9;
+}
+.function-row .control-button.strafe-left:active,
+.function-row .control-button.strafe-right:active {
+    box-shadow: 0 2px 0 0 #85c2e9;
+}
+
+.control-button.strafe-right img {
+    transform: scaleX(-1);
+}
+
+/* 语音控制 (Voice Control) - 活力绿色 */
+.voice-control {
+    width: 40%;
+    background-color: #7ed6df; /* 活力绿色，与前进键相近 */
+    box-shadow: 0 4px 0 0 #5bc0d1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.9em;
+    color: white;
+    font-weight: bold;
+    padding: 5px;
+}
+.voice-control img {
+    width: 50%;
+    height: 50%;
+    margin-bottom: 3px;
+    transform: none;
+}
+.voice-control:active {
+    box-shadow: 0 2px 0 0 #5bc0d1;
+}
+.voice-control span {
+    font-size: 0.8em;
+}
+
+/* --- 底部视频区域样式 (保持不变) --- */
+.video-panel {
+    flex: 1;
+    background-color: #34495e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.video-placeholder {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.2em;
+    cursor: pointer;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.video-placeholder img {
+    width: 50%;
+    max-width: 150px;
     height: auto;
-    transition: transform 0.2s ease, filter 0.2s ease; /* 增加滤镜过渡效果 */
+    margin-bottom: 15px;
 }
 
-.rotate90 img {
-    transform: rotate(90deg); /* 旋转180度 */
+#videoFeed {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
-.rotate180 img {
-    transform: rotate(180deg); /* 旋转180度 */
+.close-video-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(255, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    font-size: 1.2em;
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 10;
 }
 
-/* 点击效果 */
-.clickable {
-    transition: transform 0.2s ease, box-shadow 0.2s ease; /* 增加阴影过渡效果 */
-}
+/* 媒体查询：针对更宽的屏幕 (保持不变) */
+@media (min-width: 768px) {
+    .app-container {
+        flex-direction: row;
+        width: 90vw;
+        height: 90vh;
+        max-width: 1200px;
+    }
 
-.clickable:active img {
-    transform: scale(0.85); /* 稍微增大缩放比例 */
-    filter: brightness(0.9); /* 减少亮度以增强点击反馈 */
-}
+    .control-panel {
+        flex: 0.6;
+        border-right: 5px solid #85c2e9;
+        border-bottom: none;
+    }
 
-.clickable:active {
-    box-shadow: 0 0 15px rgba(0,0,0,0.3); /* 添加阴影效果 */
-}
+    .video-panel {
+        flex: 1;
+    }
 
+    .control-grid {
+        gap: 15px;
+        width: 80%;
+        max-width: none;
+    }
+
+    .control-button {
+        height: 100px;
+    }
+
+    .function-row {
+        width: 80%;
+        max-width: none;
+    }
+
+    .voice-control {
+        height: 90px;
+    }
+}
