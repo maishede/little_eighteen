@@ -39,3 +39,10 @@ APP_PORT = 8000
 
 # 命令执行间隔 (如果需要限制命令执行速度)
 COMMAND_EXECUTION_INTERVAL = 0.05
+
+# --- 日志配置 (新增) ---
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'logs')
+LOG_FILE_NAME = 'robot_app.log'
+LOG_MAX_BYTES = 50 * 1024 * 1024  # 50 MB
+LOG_BACKUP_COUNT = 5             # 保留 5 份历史日志
+LOG_LEVEL = 'INFO'               # 日志级别，可以是 DEBUG, INFO, WARNING, ERROR, CRITICAL

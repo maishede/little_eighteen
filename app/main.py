@@ -1,4 +1,4 @@
-# app/main.py
+# app/main.py (更新后的文件内容)
 import sys
 import time
 from pathlib import Path
@@ -12,6 +12,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import os
+import logging
+from logging.handlers import RotatingFileHandler
 
 # --- 路径调整开始 (保持不变) ---
 current_file_path = Path(__file__).resolve()
@@ -20,90 +22,146 @@ project_root = current_app_dir.parent
 sys.path.append(str(project_root))
 
 # 导入配置和优化后的模块
-from app.config import CAMERA_INDEX, CAMERA_FPS, CAMERA_RESOLUTION, APP_HOST, APP_PORT
+from app.config import (
+    CAMERA_INDEX, CAMERA_FPS, CAMERA_RESOLUTION, APP_HOST, APP_PORT,
+    LOG_DIR, LOG_FILE_NAME, LOG_MAX_BYTES, LOG_BACKUP_COUNT, LOG_LEVEL
+)
 from app.services.core import MotorControl
-from app.utils.regex_commend import CommandExecutor, VoiceCommandParser
+from app.utils.regex_command import CommandExecutor, VoiceCommandParser
+from app.utils.robot_demos import RobotDemos
+from app.utils.camera_streamer import CameraStreamer  # <-- 新增导入 CameraStreamer
 
-# 初始化MotorControl和CommandExecutor实例 (保持不变)
-motor_controller = MotorControl()
-command_executor = CommandExecutor(motor_controller)
-voice_parser = VoiceCommandParser()
+# --- 日志设置 (保持不变) ---
+# 确保日志目录存在
+os.makedirs(LOG_DIR, exist_ok=True)
+log_file_path = os.path.join(LOG_DIR, LOG_FILE_NAME)
+
+# 创建 logger 实例
+logger = logging.getLogger("robot_app_logger")
+logger.setLevel(LOG_LEVEL)
+
+# 创建一个 RotatingFileHandler，用于按大小切割日志文件
+file_handler = RotatingFileHandler(
+    log_file_path,
+    maxBytes=LOG_MAX_BYTES,
+    backupCount=LOG_BACKUP_COUNT,
+    encoding='utf-8'
+)
+
+# 创建一个 StreamHandler，用于将日志输出到控制台
+console_handler = logging.StreamHandler(sys.stdout)
+
+# 定义日志格式
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+# 添加处理器到 logger
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
+# --- 初始化模块实例为 None (在 lifespan 中初始化) ---
+motor_controller: MotorControl = None
+command_executor: CommandExecutor = None
+voice_parser: VoiceCommandParser = None
+robot_demos: RobotDemos = None
+# camera_streamer 的初始化调整：不再在 lifespan 中立即尝试打开摄像头
+# 而是在 camera_streamer 实例创建后，将 open/start_camera_capture 延迟到 API 调用
+camera_streamer: CameraStreamer = None
 
 
-# --- 应用生命周期管理 (将 @asynccontextmanager async def lifespan 移动到 FastAPI 实例之前) ---
-# 确保在创建 FastAPI 实例时，lifespan 函数已经定义
+# --- 应用生命周期管理 (修改这里，不再在启动时尝试打开摄像头) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("应用启动中...")
-    command_executor.start_threads()
-    yield
-    print("应用关闭中...")
+    global motor_controller, command_executor, voice_parser, robot_demos, camera_streamer
+    logger.info("应用启动中...")
+    try:
+        motor_controller = MotorControl()
+        command_executor = CommandExecutor(motor_controller, logger)
+        voice_parser = VoiceCommandParser()
+        robot_demos = RobotDemos(command_executor, logger)
+        command_executor.start_threads()
+
+        # CameraStreamer 实例在这里创建，但摄像头本身不会立即打开
+        camera_streamer = CameraStreamer(CAMERA_INDEX, CAMERA_FPS, CAMERA_RESOLUTION, logger)
+
+        logger.info("电机控制、命令执行模块、演示模块和摄像头流媒体实例初始化成功。")
+        yield  # <-- yield 之前的代码是启动逻辑
+    except Exception as e:
+        logger.error(f"应用启动失败: {e}", exc_info=True)
+        logger.critical("应用程序核心服务初始化失败，正在退出！", exc_info=True)
+        sys.exit(1)  # 强制退出应用
+
+    logger.info("应用关闭中...")
     command_executor.stop_threads()
-    print("应用已关闭。")
+    # 确保在应用关闭时，如果摄像头处于活动状态，也能被正确释放
+    if camera_streamer:
+        camera_streamer.stop_camera_capture()
+    logger.info("应用已关闭。")
 
 
-# FastAPI 应用实例 - 只创建一次，并在这里传入 lifespan！
-app = FastAPI(lifespan=lifespan)  # <--- 修正：将 lifespan 在这里传入
+# FastAPI 应用实例
+app = FastAPI(lifespan=lifespan)
 
 # 静态文件和模板挂载 (保持不变)
 static_files_dir = project_root / "static"
 templates_dir = project_root / "templates"
 
-print("\n--- DEBUGGING PATHS & STATIC FILES ---")
-print(f"Current File Path (main.py): {current_file_path}")
-print(f"Current App Directory: {current_app_dir}")
-print(f"Calculated Project Root: {project_root}")
-print(f"sys.path: {sys.path}")
+# 调试信息可以保留或移除 (保持不变)
+logger.debug("\n--- DEBUGGING PATHS & STATIC FILES ---")
+logger.debug(f"Current File Path (main.py): {current_file_path}")
+logger.debug(f"Current App Directory: {current_app_dir}")
+logger.debug(f"Calculated Project Root: {project_root}")
+logger.debug(f"sys.path: {sys.path}")
 
-print(f"\nAttempting to mount static files from: {static_files_dir}")
-print(f"Does static_files_dir exist?: {static_files_dir.exists()}")
-print(f"Is static_files_dir a directory?: {static_files_dir.is_dir()}")
+logger.debug(f"\nAttempting to mount static files from: {static_files_dir}")
+logger.debug(f"Does static_files_dir exist?: {static_files_dir.exists()}")
+logger.debug(f"Is static_files_dir a directory?: {static_files_dir.is_dir()}")
 
 if not static_files_dir.exists():
-    print(f"CRITICAL ERROR: Directory '{static_files_dir}' does not exist.")
+    logger.error(f"CRITICAL ERROR: Directory '{static_files_dir}' does not exist.")
 elif not static_files_dir.is_dir():
-    print(f"CRITICAL ERROR: Path '{static_files_dir}' is not a directory.")
+    logger.error(f"CRITICAL ERROR: Path '{static_files_dir}' is not a directory.")
 else:
-    print(f"\nContents of '{static_files_dir}' (first 10 items):")
+    logger.debug(f"\nContents of '{static_files_dir}' (first 10 items):")
     static_file_count = 0
     try:
         for item in static_files_dir.iterdir():
-            print(f"  - {item.name} {'(dir)' if item.is_dir() else '(file)'} | Full Path: {item}")
+            logger.debug(f"  - {item.name} {'(dir)' if item.is_dir() else '(file)'} | Full Path: {item}")
             if item.name == "styles.css":
-                print(f"    - styles.css exists?: {item.exists()}")
-                print(f"    - styles.css is file?: {item.is_file()}")
+                logger.debug(f"    - styles.css exists?: {item.exists()}")
+                logger.debug(f"    - styles.css is file?: {item.is_file()}")
             if item.name == "script.js":
-                print(f"    - script.js exists?: {item.exists()}")
-                print(f"    - script.js is file?: {item.is_file()}")
+                logger.debug(f"    - script.js exists?: {item.is_file()}")
             if item.name == "svgs" and item.is_dir():
-                print(f"    - Contents of svgs/ (first 5 items):")
+                logger.debug(f"    - Contents of svgs/ (first 5 items):")
                 for j, svg_item in enumerate(item.iterdir()):
                     if j >= 5: break
-                    print(
+                    logger.debug(
                         f"      - {svg_item.name} {'(dir)' if svg_item.is_dir() else '(file)'} | Full Path: {svg_item}")
             static_file_count += 1
             if static_file_count >= 10:
-                print("  ... (more items)")
+                logger.debug("  ... (more items)")
                 break
     except Exception as e:
-        print(f"Error listing contents of {static_files_dir}: {e}")
+        logger.error(f"Error listing contents of {static_files_dir}: {e}")
 
-print(f"\nAttempting to load templates from: {templates_dir}")
-print(f"Does templates_dir exist?: {templates_dir.exists()}")
-print(f"Is templates_dir a directory?: {templates_dir.is_dir()}")
+logger.debug(f"\nAttempting to load templates from: {templates_dir}")
+logger.debug(f"Does templates_dir exist?: {templates_dir.exists()}")
+logger.debug(f"Is templates_dir a directory?: {templates_dir.is_dir()}")
 if not templates_dir.exists():
-    print(f"CRITICAL ERROR: Directory '{templates_dir}' does not exist.")
+    logger.error(f"CRITICAL ERROR: Directory '{templates_dir}' does not exist.")
 elif not templates_dir.is_dir():
-    print(f"CRITICAL ERROR: Path '{templates_dir}' is not a directory.")
+    logger.error(f"CRITICAL ERROR: Path '{templates_dir}' is not a directory.")
 else:
     index_html_path = templates_dir / "index.html"
-    print(f"  - Looking for index.html at: {index_html_path}")
-    print(f"    - index.html exists?: {index_html_path.exists()}")
-    print(f"    - index.html is file?: {index_html_path.is_file()}")
+    logger.debug(f"  - Looking for index.html at: {index_html_path}")
+    logger.debug(f"    - index.html exists?: {index_html_path.exists()}")
+    logger.debug(f"    - index.html is file?: {index_html_path.is_file()}")
 
-print("\n--- END DEBUGGING PATHS & STATIC FILES ---\n")
+logger.debug("\n--- END DEBUGGING PATHS & STATIC FILES ---\n")
 
-# 在这里挂载静态文件和模板
+# 在这里挂载静态文件和模板 (保持不变)
 app.mount("/static", StaticFiles(directory=str(static_files_dir)), name="static")
 templates = Jinja2Templates(directory=str(templates_dir))
 
@@ -117,128 +175,179 @@ class VoiceText(BaseModel):
     text: str
 
 
-# --- 视频流相关全局变量 (保持不变) ---
-video_cap_lock = threading.Lock()
-camera_capture: cv2.VideoCapture | None = None
+class DemoCommand(BaseModel):
+    demo_name: str
 
 
-# --- 视频流生成器 (保持不变) ---
-def generate_frames():
-    global camera_capture
-    with video_cap_lock:
-        if camera_capture is None or not camera_capture.isOpened():
-            print(f"正在打开摄像头 {CAMERA_INDEX}...")
-            camera_capture = cv2.VideoCapture(CAMERA_INDEX)
-            if not camera_capture.isOpened():
-                print("无法打开摄像头！")
-                yield b''
-                return
-            camera_capture.set(cv2.CAP_PROP_FPS, CAMERA_FPS)
-            camera_capture.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_RESOLUTION[0])
-            camera_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_RESOLUTION[1])
-            print(f"摄像头已打开: 分辨率 {CAMERA_RESOLUTION[0]}x{CAMERA_RESOLUTION[1]}, FPS: {CAMERA_FPS}")
-    try:
-        while True:
-            with video_cap_lock:
-                if camera_capture is None or not camera_capture.isOpened():
-                    break
-                success, frame = camera_capture.read()
-            if not success:
-                print("读取摄像头帧失败，尝试重新打开...")
-                with video_cap_lock:
-                    if camera_capture:
-                        camera_capture.release()
-                    camera_capture = cv2.VideoCapture(CAMERA_INDEX)
-                    if not camera_capture.isOpened():
-                        print("重新打开摄像头失败！")
-                        break
-                    camera_capture.set(cv2.CAP_PROP_FPS, CAMERA_FPS)
-                    camera_capture.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_RESOLUTION[0])
-                    camera_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_RESOLUTION[1])
-                continue
-            ret, buffer = cv2.imencode('.jpg', frame)
-            if not ret:
-                print("编码帧失败！")
-                continue
-            frame_bytes = buffer.tobytes()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-            time.sleep(1 / CAMERA_FPS)
-    except Exception as e:
-        print(f"视频流生成错误: {e}")
-    finally:
-        with video_cap_lock:
-            if camera_capture:
-                camera_capture.release()
-                camera_capture = None
-            print("摄像头资源已释放。")
+# --- 摄像头 API 路由 (修改这里) ---
+@app.post("/camera/start")  # 这个路由只负责“启动”摄像头服务
+async def start_camera_api():
+    global camera_streamer
+    logger.info("API: 收到开启摄像头请求。")
+    if camera_streamer:
+        # 调用 CameraStreamer 的方法来启动内部摄像头捕获
+        success = camera_streamer.start_camera_capture()  # 调用 CameraStreamer 内部的启动方法
+        if success:
+            logger.info("API: 摄像头捕获已成功启动。")
+            return JSONResponse({"status": "success", "message": "Camera capture started."})
+        else:
+            logger.error("API: 启动摄像头捕获失败。")
+            raise HTTPException(status_code=500, detail="Failed to start camera capture.")
+    logger.error("API: 摄像头流媒体服务未初始化。")
+    raise HTTPException(status_code=503, detail="Camera streaming service not initialized.")
 
 
-@app.post("/camera/start")
-async def start_camera():
-    return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
+@app.get("/video_feed")  # 获取视频流
+async def video_feed():
+    global camera_streamer
+    logger.info("API: 收到视频流请求。")
+    if camera_streamer and camera_streamer.is_streaming_active():
+        # 这里直接返回生成器，StreamingResponse 会处理好 MIME 类型
+        return StreamingResponse(camera_streamer.generate_frames(),
+                                 media_type="multipart/x-mixed-replace; boundary=frame")
+    else:
+        logger.warning("API: 视频流未激活或摄像头未启动。尝试返回占位符。")
+        # 返回一个占位符图像
+        try:
+            placeholder_path = static_files_dir / "images" / "camera_off.png"  # 假设您有一个预设的图片
+
+            # 检查是否有预设的占位图
+            if placeholder_path.exists() and placeholder_path.is_file():
+                with open(placeholder_path, "rb") as f:
+                    image_data = f.read()
+                logger.info(f"返回预设占位符图片: {placeholder_path}")
+
+                # 注意：这里需要确保返回的是一个生成器，即使只有一个图片也要包装
+                async def generate_placeholder_image():
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/png\r\n\r\n' + image_data + b'\r\n')
+
+                return StreamingResponse(generate_placeholder_image(),
+                                         media_type="multipart/x-mixed-replace; boundary=frame")
+            else:
+                logger.warning("未找到预设占位符图片，生成默认灰色图片。")
+
+                # 导入 numpy (确保在文件顶部也导入了，这里是双重保险)
+                try:
+                    import numpy as np
+                except ImportError:
+                    logger.error("NumPy 模块未安装。无法生成默认灰色占位符图片。请安装：pip install numpy")
+                    raise HTTPException(status_code=500, detail="NumPy not installed, cannot generate placeholder.")
+
+                # 使用 NumPy 创建一个简单的灰色图像作为占位符
+                # 假设我们希望占位符是 640x480 的图像，颜色为 (100, 100, 100) 灰色
+                # 这是一个标准的 NumPy 数组，OpenCV 可以正确处理
+                placeholder_frame = np.full((480, 640, 3), (100, 100, 100), dtype=np.uint8)
+
+                ret, buffer = cv2.imencode('.jpg', placeholder_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                if not ret:
+                    logger.error("无法将默认灰色占位符帧编码为 JPEG。")
+                    raise HTTPException(status_code=500, detail="Failed to encode placeholder image.")
+
+                # 同样，这里也需要一个生成器
+                async def generate_default_placeholder():
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+
+                return StreamingResponse(generate_default_placeholder(),
+                                         media_type="multipart/x-mixed-replace; boundary=frame")
+
+        except Exception as e:
+            logger.error(f"Failed to return placeholder image: {e}", exc_info=True)
+            # 最终回退，如果占位符也无法生成，则直接返回错误
+            raise HTTPException(status_code=400,
+                                detail="Video stream not active or camera not started, and failed to generate placeholder.")
 
 
 @app.post("/camera/stop")
-async def stop_camera():
-    global camera_capture
-    with video_cap_lock:
-        if camera_capture and camera_capture.isOpened():
-            camera_capture.release()
-            camera_capture = None
-            print("摄像头已手动关闭。")
-            return JSONResponse({"status": "ok", "message": "Camera stopped."})
-        print("摄像头未运行或已关闭。")
-        return JSONResponse({"status": "ok", "message": "Camera already stopped or not active."})
+async def stop_camera_api():
+    logger.info("API: 收到停止摄像头请求。")
+    if camera_streamer:
+        # 调用 CameraStreamer 的方法来停止内部摄像头捕获
+        camera_streamer.stop_camera_capture()
+        logger.info("API: 摄像头捕获已停止。")
+        return JSONResponse({"status": "success", "message": "Camera capture stopped."})
+    logger.error("API: 摄像头流媒体服务未初始化。")
+    raise HTTPException(status_code=503, detail="Camera streaming service not initialized.")
 
 
-# --- 路由定义 (保持不变) ---
+# --- 其他路由定义 (保持不变) ---
 @app.websocket("/asr")
 async def asr(websocket: WebSocket):
-    print("ASR WebSocket 连接建立")
+    logger.info("ASR WebSocket 连接建立")
     try:
         while True:
             data = await websocket.receive_text()
-            print(f"收到语音文本: {data}")
+            logger.info(f"ASR WebSocket: 收到语音文本: {data}")
             parsed_command = voice_parser.parse(data)
             if parsed_command:
                 command_executor.add_command(parsed_command)
                 await websocket.send_text(f"已接收命令: {parsed_command}")
+                logger.info(f"ASR WebSocket: 已接收命令: {parsed_command}")
             else:
                 await websocket.send_text("未识别出有效命令")
+                logger.info("ASR WebSocket: 未识别出有效命令")
     except Exception as e:
-        print(f"ASR WebSocket 错误: {e}")
+        logger.error(f"ASR WebSocket 错误: {e}")
     finally:
-        print("ASR WebSocket 连接关闭")
+        logger.info("ASR WebSocket 连接关闭")
 
 
 @app.get("/health")
 async def health():
+    logger.info("API: 健康检查请求。")
     return JSONResponse({"status": "alive"})
 
 
 @app.post("/control")
 async def control(command: ControlCommand):
-    print(f"收到控制命令: {command.direction}")
+    logger.info(f"API: 收到控制命令: {command.direction}")
     command_executor.add_command(command.direction)
     return JSONResponse({"status": "ok", "received_command": command.direction})
 
 
 @app.post("/cmd")
 async def cmd(voice_text: VoiceText):
-    print(f"收到文本命令: {voice_text.text}")
+    logger.info(f"API: 收到文本命令: {voice_text.text}")
     parsed_command = voice_parser.parse(voice_text.text)
     if parsed_command:
         command_executor.add_command(parsed_command)
+        logger.info(f"API: 已解析并添加命令: {parsed_command}")
         return JSONResponse({"status": "ok", "parsed_command": parsed_command})
+    logger.info("API: 未能解析出有效命令。")
     return JSONResponse({"status": "no_command_parsed", "message": "未能解析出有效命令"})
 
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
+    logger.info("API: 收到根路径请求，返回 index.html。")
     return templates.TemplateResponse("index.html", {"request": request})
 
 
+# --- 演示功能 API (保持不变) ---
+@app.post("/demo/start")
+async def start_demo(command: DemoCommand):
+    if robot_demos:
+        if robot_demos.start_demo(command.demo_name):
+            return {"status": "success", "message": f"Demo '{command.demo_name}' started."}
+        else:
+            raise HTTPException(status_code=409,
+                                detail=f"Failed to start demo '{command.demo_name}'. Another demo might be running or demo not found.")
+    else:
+        raise HTTPException(status_code=503, detail="Robot demos module not initialized.")
+
+
+@app.post("/demo/stop")
+async def stop_demo():
+    if robot_demos:
+        if robot_demos.stop_demo():
+            return {"status": "success", "message": "Demo stopped."}
+        else:
+            return {"status": "info", "message": "No demo was running."}
+    else:
+        raise HTTPException(status_code=503, detail="Robot demos module not initialized.")
+
+
 if __name__ == '__main__':
-    # Uvicorn 会自动从 app 实例中找到 lifespan 定义
-    uvicorn.run(app, host=APP_HOST, port=APP_PORT)  # <--- 修正：从这里移除 lifespan=lifespan
+    logger.info(f"启动 Uvicorn 服务器在 {APP_HOST}:{APP_PORT}")
+    uvicorn.run(app, host=APP_HOST, port=APP_PORT)

@@ -1,70 +1,135 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>宝贝小车控制</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <title>智能小车控制中心</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css?v={{ range(1000, 9999) | random | int }}">
 </head>
 <body>
-    <div class="app-container">
-        <div class="control-panel">
+<div class="container">
+    <header class="header">
+        <h1>智能小车控制</h1>
+    </header>
+
+    <main class="main-content">
+        <section class="video-section card">
+            <h2>视频监控</h2>
+            <div class="video-container">
+                <img id="videoStream" src="" alt="视频流加载中..." class="video-placeholder">
+
+                <div id="cameraOverlay" class="camera-overlay">
+                    <button id="startCameraButton" class="btn btn-primary camera-control-btn active">
+                        <img src="/static/svgs/camera_sleep.svg" alt="开启摄像头" class="icon"> 开启摄像头
+                    </button>
+                    <button id="stopCameraButton" class="btn btn-secondary camera-control-btn blurred-stop-icon">
+                        <img src="/static/svgs/stop_sign.svg" alt="停止摄像头" class="icon"> 停止
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="control-section card">
+            <h2>手动控制</h2>
             <div class="control-grid">
-                <button class="control-button diagonal-up-left" onclick="sendCommand('move_left_forward')">
-                    <img src="/static/svgs/arrow_diag_up_left.svg" alt="左前">
+                <button id="moveForwardLeftButton" class="btn btn-control btn-diag-up-left"
+                        data-command="move_left_forward">
+                    <img src="/static/svgs/arrow_diag_up_left.svg" alt="左前" class="icon">
                 </button>
-                <button class="control-button forward" onclick="sendCommand('forward')">
-                    <img src="/static/svgs/arrow_up.svg" alt="前进">
+                <button id="moveForwardButton" class="btn btn-control btn-up" data-command="move_forward">
+                    <img src="/static/svgs/arrow_up.svg" alt="前进" class="icon">
                 </button>
-                <button class="control-button diagonal-up-right" onclick="sendCommand('move_right_forward')">
-                    <img src="/static/svgs/arrow_diag_up_left.svg" alt="右前">
-                </button>
-
-                <button class="control-button turn-left" onclick="sendCommand('turn_left')">
-                    <img src="/static/svgs/arrow_turn.svg" alt="左转">
-                </button>
-                <button class="control-button stop" onclick="sendCommand('stop')">
-                    <img src="/static/svgs/stop_sign.svg" alt="停止">
-                </button>
-                <button class="control-button turn-right" onclick="sendCommand('turn_right')">
-                    <img src="/static/svgs/arrow_turn.svg" alt="右转">
+                <button id="moveForwardRightButton" class="btn btn-control btn-diag-up-right"
+                        data-command="move_right_forward">
+                    <img src="/static/svgs/arrow_diag_up_left.svg" alt="右前" class="icon icon-rotate-90">
                 </button>
 
-                <button class="control-button diagonal-down-left" onclick="sendCommand('move_left_back')">
-                    <img src="/static/svgs/arrow_diag_up_left.svg" alt="左后">
+                <button id="turnLeftButton" class="btn btn-control btn-turn" data-command="turn_left">
+                    <img src="/static/svgs/arrow_turn.svg" alt="左转" class="icon">
                 </button>
-                <button class="control-button backward" onclick="sendCommand('backward')">
-                    <img src="/static/svgs/arrow_up.svg" alt="后退">
+                <button id="stopButton" class="btn btn-control btn-stop" data-command="stop">
+                    <img src="/static/svgs/stop_sign.svg" alt="停止" class="icon">
                 </button>
-                <button class="control-button diagonal-down-right" onclick="sendCommand('move_right_back')">
-                    <img src="/static/svgs/arrow_diag_up_left.svg" alt="右后">
+                <button id="turnRightButton" class="btn btn-control btn-turn" data-command="turn_right">
+                    <img src="/static/svgs/arrow_turn.svg" alt="右转" class="icon icon-flip-horizontal">
+                </button>
+
+                <button id="moveBackwardLeftButton" class="btn btn-control btn-diag-down-left"
+                        data-command="move_left_back">
+                    <img src="/static/svgs/arrow_diag_up_left.svg" alt="左后" class="icon icon-rotate-180">
+                </button>
+                <button id="moveBackwardButton" class="btn btn-control btn-down" data-command="move_back">
+                    <img src="/static/svgs/arrow_up.svg" alt="后退" class="icon icon-rotate-180">
+                </button>
+                <button id="moveBackwardRightButton" class="btn btn-control btn-diag-down-right"
+                        data-command="move_right_back">
+                    <img src="/static/svgs/arrow_diag_up_left.svg" alt="右后" class="icon icon-rotate-180-flip">
+                </button>
+
+                <button id="moveLeftButton" class="btn btn-control btn-side-move" data-command="move_left">
+                    <img src="/static/svgs/crab.svg" alt="左移" class="icon icon-flip-horizontal">
+                </button>
+                <div></div>
+                <button id="moveRightButton" class="btn btn-control btn-side-move" data-command="move_right">
+                    <img src="/static/svgs/crab.svg" alt="右移" class="icon">
                 </button>
             </div>
+        </section>
 
-            <div class="function-row">
-                <button class="control-button strafe-left" onclick="sendCommand('strafe_left')">
-                    <img src="/static/svgs/crab.svg" alt="左横移">
+        <section class="voice-text-section card">
+            <h2>语音/文本控制</h2>
+            <div class="voice-input-group">
+                <input type="text" id="textCommandInput" placeholder="输入命令，例如：前进">
+                <button id="sendTextCommandButton" class="btn btn-primary">发送</button>
+            </div>
+            <div class="voice-feedback">
+                <button id="startAsrButton" class="btn btn-secondary">
+                    <img src="/static/svgs/microphone.svg" alt="开始语音" class="icon"> 开始语音
                 </button>
-                <button class="control-button voice-control" id="voiceControlButton">
-                    <img src="/static/svgs/microphone.svg" alt="麦克风">
-                    <span>按住说话</span>
+                <button id="stopAsrButton" class="btn btn-secondary">
+                    <img src="/static/svgs/microphone.svg" alt="停止语音" class="icon icon-muted"> 停止语音
                 </button>
-                <button class="control-button strafe-right" onclick="sendCommand('strafe_right')">
-                    <img src="/static/svgs/crab.svg" alt="右横移">
+                <p>识别结果: <span id="asrOutput">等待语音...</span></p>
+            </div>
+        </section>
+
+        <section class="demo-section card">
+            <h2>机器人演示</h2>
+            <div class="demo-controls">
+                <select id="demoSelect">
+                    <option value="">选择演示模式</option>
+                    <option value="digit_0">数字 0</option>
+                    <option value="digit_1">数字 1</option>
+                    <option value="digit_2">数字 2</option>
+                    <option value="digit_3">数字 3</option>
+                    <option value="digit_4">数字 4</option>
+                    <option value="digit_5">数字 5</option>
+                    <option value="digit_6">数字 6</option>
+                    <option value="digit_7">数字 7</option>
+                    <option value="digit_8">数字 8</option>
+                    <option value="digit_9">数字 9</option>
+                    <option value="crab_walk">蟹步舞</option>
+                    <option value="box_step">方步</option>
+                    <option value="s_curve">S 形曲线</option>
+                    <option value="z_curve">Z 形曲线</option>
+                    <option value="spin_fast">原地高速旋转</option>
+                </select>
+                <button id="startDemoButton" class="btn btn-primary">
+                    <img src="/static/svgs/crab.svg" alt="开始演示" class="icon"> 开始演示
+                </button>
+                <button id="stopDemoButton" class="btn btn-secondary">
+                    <img src="/static/svgs/stop_sign.svg" alt="停止演示" class="icon"> 停止演示
                 </button>
             </div>
-        </div>
+        </section>
+    </main>
 
-        <div class="video-panel" id="videoPanel">
-            <div class="video-placeholder" id="videoPlaceholder">
-                <img src="/static/svgs/camera_sleep.svg" alt="摄像头图标">
-                <span>点击这里开启小车的眼睛 📷</span>
-            </div>
-            <img src="" alt="实时视频流" id="videoFeed" class="hidden">
-            <button class="close-video-button hidden" id="closeVideoButton">X</button>
-        </div>
-    </div>
+    <footer class="footer">
+        <p>&copy; 小十八 智能小车控制中心. All rights reserved.</p>
+    </footer>
+</div>
 
-    <script src="/static/script.js"></script>
+<script src="/static/script.js?v={{ range(1000, 9999) | random | int }}"></script>
 </body>
 </html>

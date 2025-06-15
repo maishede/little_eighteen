@@ -1,306 +1,482 @@
-/* 通用样式 (保持不变) */
-body {
+:root {
+    --primary-color: #FF6F61;
+    --primary-dark: #E05244;
+    --secondary-color: #6A057F;
+    --secondary-dark: #4C045E;
+    --accent-color: #FFC300;
+    --background-color: #E6F2FF;
+    --card-background: #FFFFFF;
+    --text-color: #333333;
+    --border-color: #FFDDAA;
+    --shadow-light: rgba(0, 0, 0, 0.15);
+    --font-family: 'Roboto', sans-serif; /* 使用 Roboto 字体 */
+    --border-radius: 20px;
+    --spacing-unit: 24px;
+}
+
+* {
     margin: 0;
-    font-family: 'Comic Sans MS', cursive, sans-serif;
-    background-color: #f0f8ff; /* 浅蓝色背景 */
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-family);
+    line-height: 1.5;
+    color: var(--text-color);
+    background-color: var(--background-color);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-unit);
+    flex-grow: 1; /* 允许容器占据剩余空间 */
+    display: flex;
+    flex-direction: column;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: var(--spacing-unit);
+    padding: var(--spacing-unit) 0;
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-light) 0px 5px 15px;
+}
+
+.header h1 {
+    color: var(--primary-color);
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.main-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-unit);
+    margin-bottom: var(--spacing-unit);
+}
+
+.card {
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-unit);
+    box-shadow: var(--shadow-light) 0px 5px 15px;
+    display: flex;
+    flex-direction: column;
+}
+
+.card h2 {
+    color: var(--secondary-color);
+    font-size: 1.8rem;
+    margin-bottom: var(--spacing-unit);
+    text-align: center;
+}
+
+/* --- 按钮通用样式 (保持您的原有样式不变) --- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.2em 1.8em;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: 3px solid var(--primary-dark);
+    border-radius: var(--border-radius);
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    text-decoration: none;
+    color: white;
+    gap: 12px;
+    white-space: nowrap;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-dark);
+}
+
+.btn-secondary {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-dark);
+}
+
+.btn-secondary:hover {
+    background-color: var(--secondary-dark);
+}
+
+.btn .icon {
+    width: 32px;
+    height: 32px;
+    filter: none;
+    transition: transform 0.2s ease;
+}
+
+.icon-rotate-90 { transform: rotate(90deg); }
+.icon-rotate-180 { transform: rotate(180deg); }
+.icon-flip-horizontal { transform: scaleX(-1); }
+.icon-flip-vertical { transform: scaleY(-1); }
+.icon-rotate-180-flip { transform: rotate(180deg) scaleX(-1); } /* 右后 (左后旋转180度再水平翻转) */
+.icon-muted { opacity: 0.6; }
+
+/* --- 视频监控区域样式 --- */
+.video-section {
+    grid-column: span 1; /* 占用一个网格列 */
+    min-height: 400px; /* 确保有足够高度 */
+}
+
+.video-container {
+    position: relative; /* 关键：使子元素的绝对定位生效 */
+    width: 100%;
+    max-width: 640px; /* 根据你的摄像头分辨率调整最大宽度 */
+    aspect-ratio: 4/3; /* 假设摄像头是 4:3 比例，保持图片比例 */
+    overflow: hidden; /* 防止内容溢出 */
+    background-color: #000; /* 视频未加载时的背景色 */
+    border-radius: var(--border-radius);
+    display: flex; /* 用于居中占位图或按钮 */
+    justify-content: center;
+    align-items: center;
+    box-shadow: var(--shadow-light) 0px 5px 15px;
+}
+
+/* 视频流图片 */
+#videoStream {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* 保持视频比例并填充容器 */
+    display: block; /* 移除图片默认的底部间距 */
+    background-color: var(--card-background); /* 占位背景色 */
+    border-radius: var(--border-radius);
+}
+
+/* 初始占位符样式 */
+.video-placeholder {
+    /* 保持图片本身隐藏，显示替代文本或背景 */
+    width: 100%; /* 确保占位图也占据空间 */
+    height: 100%;
+    background-color: var(--card-background);
+    color: var(--text-color);
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-    overflow: hidden;
+    font-size: 1.5rem;
+    font-weight: 500;
+    text-align: center;
+    border-radius: var(--border-radius);
 }
 
-.app-container {
+/* === 新增/修改的摄像头控制相关样式 === */
+.camera-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     display: flex;
-    flex-direction: column;
-    width: 100vw;
-    height: 100vh;
-    max-width: 600px;
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    background-color: #fff;
-    overflow: hidden;
-}
-
-.hidden {
-    display: none !important;
-}
-
-/* --- 顶部控制面板样式 --- */
-.control-panel {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-around;
+    justify-content: center;
     align-items: center;
-    padding: 10px;
-    background-color: #a7d9f7; /* 可爱蓝色背景 */
-    border-bottom: 5px solid #85c2e9;
+    z-index: 10; /* 确保它在视频流图片之上 */
+    pointer-events: none; /* 默认不接受点击事件，除非有 active 按钮 */
+}
+
+.camera-control-btn {
+    position: absolute; /* 使按钮可以自由定位在覆盖层内 */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* 完美居中 */
+    opacity: 0; /* 默认隐藏所有控制按钮 */
+    pointer-events: none; /* 默认禁用点击事件 */
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    /* 调整按钮大小，使其与您其他按钮风格更接近 */
+    padding: 1em 1.5em; /* 调整内边距 */
+    font-size: 1.1rem; /* 调整字体大小 */
+}
+
+/* 激活状态的控制按钮 (当前可见的按钮) */
+.camera-control-btn.active {
+    opacity: 1; /* 显示激活的按钮 */
+    pointer-events: all; /* 启用点击事件 */
+}
+
+/* 模糊停止图标样式 (视频播放时鼠标悬停显示) */
+.blurred-stop-icon {
+    /* 继承 .btn 基础样式 */
+    background-color: rgba(0, 0, 0, 0.5); /* 半透明背景 */
+    backdrop-filter: blur(5px); /* 虚化效果 */
+    -webkit-backdrop-filter: blur(5px); /* Safari 兼容 */
+    border: 3px solid rgba(255, 255, 255, 0.5); /* 半透明边框 */
+    border-radius: 50%; /* 圆形按钮 */
+    width: 90px; /* 调整尺寸，使其不会太大 */
+    height: 90px;
+    padding: 0; /* 移除内边距，让图标居中 */
+    font-size: 1rem; /* 调整字体大小 */
+    display: flex; /* 内部居中图标和文本 */
+    align-items: center;
+    justify-content: center;
+    color: white; /* 文本颜色 */
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.4); /* 较柔和的光效 */
+}
+
+.blurred-stop-icon .icon {
+    width: 45px; /* 调整图标尺寸 */
+    height: 45px;
+    filter: brightness(0) invert(1); /* 将黑色图标变为白色 */
+}
+
+/* 当视频流正在播放时，隐藏 startCameraButton */
+.video-container.streaming #startCameraButton {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* 当视频流正在播放时，停止按钮由 CSS 负责在 hover 时显示 */
+.video-container.streaming #stopCameraButton {
+    opacity: 0; /* 默认不显示 */
+    pointer-events: none; /* 默认不接受点击 */
+}
+
+/* 视频播放时，鼠标悬停在 video-container 上时显示停止按钮 */
+.video-container.streaming:hover #stopCameraButton {
+    opacity: 1;
+    pointer-events: all;
+    transform: translate(-50%, -50%) scale(1.05); /* 鼠标悬停时略微放大，过渡更平滑 */
+}
+/* === 摄像头控制相关样式结束 === */
+
+
+/* --- 手动控制区域样式 (保持您的原有样式不变) --- */
+.control-section {
+    grid-column: span 1; /* 占用一个网格列 */
 }
 
 .control-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    gap: 8px;
-    width: 90%;
-    max-width: 400px;
-    margin-bottom: 10px;
-}
-
-.control-button {
-    width: 100%;
-    height: 80px;
-    /* 基础按钮样式，颜色将在下方按类型覆盖 */
-    border: none;
-    border-radius: 50%;
-    box-shadow: 0 4px 0 0; /* 阴影颜色将由具体按钮颜色决定 */
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
+    gap: 10px;
+    justify-items: center;
     align-items: center;
-    transition: transform 0.1s ease, box-shadow 0.1s ease;
-    padding: 0;
-    -webkit-tap-highlight-color: transparent;
 }
 
-.control-button img {
-    width: 70%;
-    height: 70%;
-    object-fit: contain;
-    transform-origin: center center;
-    transition: transform 0.1s ease;
+.btn-control {
+    width: 80px; /* 控制按钮的固定宽度 */
+    height: 80px; /* 控制按钮的固定高度 */
+    padding: 0; /* 移除内边距，使图标充满 */
+    border-radius: 50%; /* 圆形按钮 */
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-dark);
 }
 
-.control-button:active {
-    transform: translateY(2px);
-    /* 阴影颜色将由具体按钮颜色决定 */
+.btn-control .icon {
+    width: 40px; /* 控制图标尺寸 */
+    height: 40px;
 }
 
-/* --- 核心方向按钮颜色 --- */
-
-/* 停止按钮 (Stop) - 柔和的红色 */
-.control-button.stop {
-    background-color: #ff8c8c; /* 柔和的红色 */
-    box-shadow: 0 4px 0 0 #e06b6b;
-    border-radius: 30%;
-}
-.control-button.stop:active {
-    box-shadow: 0 2px 0 0 #e06b6b;
+.btn-control:hover {
+    background-color: var(--secondary-dark);
 }
 
-/* 前进 (Forward) - 活力绿色 */
-.control-button.forward {
-    background-color: #8ce8a4; /* 活力绿色 */
-    box-shadow: 0 4px 0 0 #6bcb81;
-}
-.control-button.forward:active {
-    box-shadow: 0 2px 0 0 #6bcb81;
+/* 停止按钮特殊样式 */
+.btn-stop {
+    background-color: var(--primary-color);
+    border-color: var(--primary-dark);
 }
 
-/* 后退 (Backward) - 温暖橙色 */
-.control-button.backward {
-    background-color: #ffb77d; /* 温暖橙色 */
-    box-shadow: 0 4px 0 0 #e0975d;
-}
-.control-button.backward:active {
-    box-shadow: 0 2px 0 0 #e0975d;
+.btn-stop:hover {
+    background-color: var(--primary-dark);
 }
 
-/* 左转 (Turn Left) & 右转 (Turn Right) - 明亮黄色 */
-.control-button.turn-left,
-.control-button.turn-right {
-    background-color: #ffe066; /* 明亮黄色 */
-    box-shadow: 0 4px 0 0 #ffc107;
-}
-.control-button.turn-left:active,
-.control-button.turn-right:active {
-    box-shadow: 0 2px 0 0 #ffc107;
+/* 转向按钮特殊样式 */
+.btn-turn {
+    background-color: var(--accent-color);
+    border-color: #e0ac00; /* 手动调整为 Accent Color 的深色版本 */
 }
 
-/* --- 斜向移动按钮颜色 (与核心方向相似色系，保持协调) --- */
-
-.control-button.diagonal-up-left,
-.control-button.diagonal-up-right,
-.control-button.diagonal-down-left,
-.control-button.diagonal-down-right {
-    background-color: #b7e0d3; /* 柔和的薄荷绿 */
-    box-shadow: 0 4px 0 0 #9dd1c1;
+.btn-turn:hover {
+    background-color: #e0ac00;
 }
-.control-button.diagonal-up-left:active,
-.control-button.diagonal-up-right:active,
-.control-button.diagonal-down-left:active,
-.control-button.diagonal-down-right:active {
-    box-shadow: 0 2px 0 0 #9dd1c1;
+
+/* 侧向移动按钮 */
+.btn-side-move {
+    background-color: #6c757d; /* 灰色 */
+    border-color: #5a6268;
+}
+
+.btn-side-move:hover {
+    background-color: #5a6268;
 }
 
 
-/* SVG 旋转和翻转样式 (保持不变) */
-.control-button.backward img {
-    transform: rotate(180deg);
+/* --- 语音/文本控制区域样式 (保持您的原有样式不变) --- */
+.voice-text-section {
+    grid-column: span 1;
 }
 
-.control-button.turn-right img {
-    transform: rotate(180deg);
-}
-
-.control-button.diagonal-up-right img {
-    transform: scaleX(-1);
-}
-
-.control-button.diagonal-down-left img {
-    transform: rotate(180deg);
-}
-
-.control-button.diagonal-down-right img {
-    transform: scaleX(-1) rotate(180deg);
-}
-
-/* --- 底部功能行样式 --- */
-.function-row {
+.voice-input-group {
     display: flex;
-    justify-content: space-around;
-    width: 90%;
-    max-width: 450px;
-    margin-top: 10px;
+    gap: 10px;
+    margin-bottom: var(--spacing-unit);
 }
 
-/* 横向移动 (Strafe) - 可爱浅蓝色 */
-.function-row .control-button.strafe-left,
-.function-row .control-button.strafe-right {
-    height: 70px;
-    width: 30%;
-    border-radius: 20px;
-    background-color: #a7d9f7; /* 浅蓝色 */
-    box-shadow: 0 4px 0 0 #85c2e9;
-}
-.function-row .control-button.strafe-left:active,
-.function-row .control-button.strafe-right:active {
-    box-shadow: 0 2px 0 0 #85c2e9;
+#textCommandInput {
+    flex-grow: 1;
+    padding: 10px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    background-color: var(--card-background);
+    color: var(--text-color);
 }
 
-.control-button.strafe-right img {
-    transform: scaleX(-1);
+#textCommandInput:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(var(--primary-color), 0.2);
 }
 
-/* 语音控制 (Voice Control) - 活力绿色 */
-.voice-control {
-    width: 40%;
-    background-color: #7ed6df; /* 活力绿色，与前进键相近 */
-    box-shadow: 0 4px 0 0 #5bc0d1;
+.voice-feedback {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
+    flex-wrap: wrap; /* 允许在小屏幕上换行 */
+    gap: 10px;
     align-items: center;
-    font-size: 0.9em;
-    color: white;
-    font-weight: bold;
-    padding: 5px;
-}
-.voice-control img {
-    width: 50%;
-    height: 50%;
-    margin-bottom: 3px;
-    transform: none;
-}
-.voice-control:active {
-    box-shadow: 0 2px 0 0 #5bc0d1;
-}
-.voice-control span {
-    font-size: 0.8em;
 }
 
-/* --- 底部视频区域样式 (保持不变) --- */
-.video-panel {
-    flex: 1;
-    background-color: #34495e;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-    overflow: hidden;
+#asrOutput {
+    background-color: var(--background-color);
+    padding: 8px 12px;
+    border-radius: var(--border-radius);
+    font-style: italic;
+    flex-grow: 1; /* 允许占据剩余空间 */
+    min-width: 150px; /* 最小宽度 */
 }
 
-.video-placeholder {
+
+/* --- 机器人演示区域样式 (保持您的原有样式不变) --- */
+.demo-section {
+    grid-column: span 1;
+}
+
+.demo-controls {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
+    flex-wrap: wrap; /* 允许换行 */
+    gap: 10px;
     align-items: center;
+}
+
+#demoSelect {
+    flex-grow: 1;
+    padding: 10px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    background-color: var(--card-background);
+    color: var(--text-color);
+    appearance: none; /* 移除默认下拉箭头 */
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333333%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13.2-6.4H18.6c-5%200-9.3%201.8-13.2%206.4-3.9%204.6-5.8%2010.5-5.8%2017.4v140.2c0%207%201.9%2012.9%205.8%2017.4%203.9%204.6%208.2%206.4%2013.2%206.4h255.2c5%200%209.3-1.8%2013.2-6.4%203.9-4.6%205.8-10.5%205.8-17.4V86.8c0-7-1.9-12.9-5.8-17.4z%22%2F%3E%3C%2Fsvg%3E');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px;
+    padding-right: 30px; /* 防止文本与箭头重叠 */
+}
+
+#demoSelect:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(var(--primary-color), 0.2);
+}
+
+/* --- 页脚样式 (保持您的原有样式不变) --- */
+.footer {
     text-align: center;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 1.2em;
-    cursor: pointer;
-    padding: 20px;
-    box-sizing: border-box;
+    margin-top: var(--spacing-unit);
+    padding: var(--spacing-unit) 0;
+    color: var(--text-color);
+    opacity: 0.8;
 }
 
-.video-placeholder img {
-    width: 50%;
-    max-width: 150px;
-    height: auto;
-    margin-bottom: 15px;
-}
-
-#videoFeed {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
-.close-video-button {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background-color: rgba(255, 0, 0, 0.7);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    font-size: 1.2em;
-    font-weight: bold;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    z-index: 10;
-}
-
-/* 媒体查询：针对更宽的屏幕 (保持不变) */
-@media (min-width: 768px) {
-    .app-container {
-        flex-direction: row;
-        width: 90vw;
-        height: 90vh;
-        max-width: 1200px;
+/* --- 响应式设计 (仅微调摄像头相关按钮，其他保持原有) --- */
+@media (max-width: 767px) {
+    .container {
+        padding: calc(var(--spacing-unit) / 2); /* 减小内边距 */
     }
 
-    .control-panel {
-        flex: 0.6;
-        border-right: 5px solid #85c2e9;
-        border-bottom: none;
+    .header h1 {
+        font-size: 2rem;
     }
 
-    .video-panel {
-        flex: 1;
+    .main-content {
+        grid-template-columns: 1fr; /* 单列布局 */
+        gap: calc(var(--spacing-unit) / 2);
+    }
+
+    .card {
+        padding: calc(var(--spacing-unit) / 2);
+    }
+
+    .card h2 {
+        font-size: 1.5rem;
+        margin-bottom: calc(var(--spacing-unit) / 2);
+    }
+
+    .btn {
+        font-size: 1rem;
+        padding: 0.8em 1.2em;
+        gap: 8px;
+    }
+
+    .btn .icon {
+        width: 24px;
+        height: 24px;
     }
 
     .control-grid {
-        gap: 15px;
-        width: 80%;
-        max-width: none;
+        gap: 5px; /* 减小控制按钮之间的间距 */
     }
 
-    .control-button {
-        height: 100px;
+    .btn-control {
+        width: 60px; /* 减小控制按钮尺寸 */
+        height: 60px;
     }
 
-    .function-row {
-        width: 80%;
-        max-width: none;
+    .btn-control .icon {
+        width: 30px;
+        height: 30px;
     }
 
-    .voice-control {
-        height: 90px;
+    .voice-input-group, .voice-feedback, .demo-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    #textCommandInput, #demoSelect {
+        padding: 8px 10px;
+    }
+
+    /* 响应式调整模糊停止图标 */
+    .blurred-stop-icon {
+        width: 70px; /* 调整尺寸 */
+        height: 70px;
+    }
+
+    .blurred-stop-icon .icon {
+        width: 35px; /* 调整图标尺寸 */
+        height: 35px;
     }
 }
