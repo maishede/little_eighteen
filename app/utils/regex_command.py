@@ -35,7 +35,7 @@ class CommandExecutor:
         # 专用线程池用于运行阻塞的 GPIO 测距
         self._executor = ThreadPoolExecutor(max_workers=1)
 
-    async def start_threads(self):
+    async def start_tasks(self):
         """启动命令执行和距离监控线程"""
         self._running = True
         if self._command_task is None or self._command_task.done():
@@ -50,7 +50,7 @@ class CommandExecutor:
             # self._distance_monitor_thread.start()
             self.logger.info("异步距离检测模块已启动")
 
-    async def stop_threads(self):
+    async def stop_tasks(self):
         """停止所有后台线程"""
         self._running = False
         # 清空队列，防止线程阻塞
