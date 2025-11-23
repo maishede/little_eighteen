@@ -28,7 +28,8 @@ MODE_STOP = 3
 # 摄像头配置
 CAMERA_INDEX = 0  # 摄像头设备索引，通常为0
 CAMERA_FPS = 30  # 摄像头帧率
-CAMERA_RESOLUTION = (640, 480)  # 摄像头分辨率
+# CAMERA_RESOLUTION = (640, 480)  # 摄像头分辨率
+CAMERA_RESOLUTION = (320, 240)  # 摄像头分辨率
 
 # WebSocket ASR 服务地址 (如果使用外部服务)
 ASR_SERVER_URL = os.getenv("ASR_SERVER_URL", "ws://localhost:8001/ws")  # 示例，按需修改
@@ -44,5 +45,5 @@ COMMAND_EXECUTION_INTERVAL = 0.05
 LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'logs')
 LOG_FILE_NAME = 'robot_app.log'
 LOG_MAX_BYTES = 50 * 1024 * 1024  # 50 MB
-LOG_BACKUP_COUNT = 5             # 保留 5 份历史日志
-LOG_LEVEL = 'INFO'               # 日志级别，可以是 DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_BACKUP_COUNT = 5  # 保留 5 份历史日志
+LOG_LEVEL = 'INFO'  # 日志级别，可以是 DEBUG, INFO, WARNING, ERROR, CRITICAL
