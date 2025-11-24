@@ -1,4 +1,4 @@
-# app/utils/camera_streamer.py (更新后的文件内容)
+# app/utils/camera_streamer.py
 import cv2
 import threading
 import time
@@ -9,7 +9,7 @@ import asyncio
 class CameraStreamer:
     """
     负责管理摄像头视频流的类。
-    它处理摄像头的打开、关闭、帧捕获和生成器。
+    Asyncio 优化版本：后台线程读取硬件，前台协程分发数据。
     """
 
     def __init__(self, camera_index: int, fps: int, resolution: tuple, logger: logging.Logger):
@@ -17,97 +17,56 @@ class CameraStreamer:
         self.fps = fps
         self.resolution = resolution
         self.logger = logger
-        self.cap = None  # OpenCV VideoCapture 对象
-        self._is_streaming = False  # 标志：摄像头是否正在捕获和传输流
+        self.cap = None
+        self._is_streaming = False
         self._lock = threading.Lock()
         self._current_frame = None
         self._stop_event = threading.Event()
         self._capture_thread = None
-        # self._frame_lock = threading.Lock()  # 锁：保护共享帧数据
-        # self._current_frame = None  # 最近捕获的帧
-        # self._stop_event = threading.Event()  # 停止事件，用于线程间通信
 
-        self.logger.info(f"CameraStreamer 实例初始化：Index={camera_index}, FPS={fps}, Resolution={resolution}")
+        self.logger.info(f"CameraStreamer 初始化: Index={camera_index}, FPS={fps}, Res={resolution}")
 
     def start_camera_capture(self) -> bool:
-        """
-        启动摄像头捕获。
-        如果摄像头已在运行或无法打开，则返回 False。
-        此方法现在在 API 调用时才执行实际的摄像头打开操作。
-        """
+        """启动摄像头捕获"""
         if self._is_streaming:
-            self.logger.warning("摄像头已在运行中，无需重复启动。")
+            self.logger.warning("摄像头已在运行")
             return True
 
-        self.logger.info(f"尝试打开摄像头 {self.camera_index}...")
+        self.logger.info(f"正在打开摄像头 {self.camera_index}...")
         try:
-            # 尝试打开摄像头
+            # 在树莓派上，建议指定 backend，有时能提高兼容性
+            # self.cap = cv2.VideoCapture(self.camera_index, cv2.CAP_V4L2)
             self.cap = cv2.VideoCapture(self.camera_index)
+
             if not self.cap.isOpened():
-                self.logger.error(f"无法打开摄像头 {self.camera_index}。请检查摄像头连接和权限。")
+                self.logger.error(f"无法打开摄像头 {self.camera_index}")
                 return False
 
-            # 设置分辨率和帧率
+            # 设置参数
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.resolution[0])
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.resolution[1])
             self.cap.set(cv2.CAP_PROP_FPS, self.fps)
-
-            # # 验证设置是否成功 (可选，某些摄像头可能不支持所有设置)
-            # actual_width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-            # actual_height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-            # actual_fps = self.cap.get(cv2.CAP_PROP_FPS)
-            # self.logger.info(f"摄像头 {self.camera_index} 实际分辨率: {actual_width}x{actual_height}, 实际帧率: {actual_fps}")
-            #
-            # self._is_streaming = True
-            # self._stop_event.clear()  # 清除停止事件，表示可以开始
-            # self.logger.info(f"摄像头 {self.camera_index} 成功启动捕获。")
-            #
-            # # 启动一个独立的线程来连续读取帧，避免阻塞主线程
-            # self._capture_thread = threading.Thread(target=self._read_frames_loop, daemon=True)
-            # self._capture_thread.start()
-            # self.logger.info("摄像头帧读取线程已启动。")
-            # return True
-            # 设置缓冲区大小为1，减少延迟
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # 关键：减少延迟
 
             self._is_streaming = True
             self._stop_event.clear()
+            self._current_frame = None  # 重置当前帧
 
-            # 启动采集线程（生产者）
+            # 启动采集线程
             self._capture_thread = threading.Thread(target=self._read_frames_loop, daemon=True)
             self._capture_thread.start()
+
+            # 可选：等待一小会儿确保第一帧准备好（非阻塞式等待留给前端处理，这里只要线程启动即可）
             return True
 
-
         except Exception as e:
-            self.logger.error(f"启动摄像头 {self.camera_index} 时发生异常: {e}", exc_info=True)
-            # self.cap = None
-            # self._is_streaming = False
+            self.logger.error(f"启动摄像头异常: {e}", exc_info=True)
+            self._is_streaming = False
             return False
 
     def _read_frames_loop(self):
-        """
-        在单独的线程中循环读取摄像头帧。
-        """
-        self.logger.info("进入 _read_frames_loop 循环。")
-        # while self._is_streaming and not self._stop_event.is_set() and self.cap and self.cap.isOpened():
-        #     ret, frame = self.cap.read()
-        #     if not ret:
-        #         self.logger.warning(f"无法从摄像头 {self.camera_index} 读取帧。可能已断开或停止。")
-        #         self._is_streaming = False  # 停止流
-        #         break  # 退出循环
-        #
-        #     with self._frame_lock:
-        #         self._current_frame = frame
-        #     time.sleep(1 / self.fps)  # 控制帧率
-        #
-        # self.logger.info("_read_frames_loop 循环结束。")
-        # if self.cap:
-        #     self.cap.release()  # 释放摄像头资源
-        #     self.logger.info(f"摄像头 {self.camera_index} 资源已释放。")
-        # self.cap = None
-        # self._is_streaming = False
-        # self._current_frame = None
+        """后台线程：负责从硬件读取帧"""
+        self.logger.info("摄像头采集线程启动")
         while self._is_streaming and not self._stop_event.is_set():
             if self.cap:
                 ret, frame = self.cap.read()
@@ -115,41 +74,31 @@ class CameraStreamer:
                     with self._lock:
                         self._current_frame = frame
                 else:
-                    time.sleep(0.1)
-            # 这里的sleep决定了最大采集帧率，稍微sleep一下让出CPU给Python解释器
+                    self.logger.warning("无法读取帧，正在重试...")
+                    time.sleep(0.5)  # 读取失败时稍作等待，防止CPU空转
+                    continue
+
+            # 控制采集帧率，避免占用过多CPU
             time.sleep(1 / self.fps)
 
         if self.cap:
             self.cap.release()
+        self.logger.info("摄像头采集线程结束")
 
     async def generate_frames(self):
-        """
-        生成视频流的帧。
-        """
-        self.logger.info("生成视频帧请求开始。")
-        # while self._is_streaming and not self._stop_event.is_set():
-        #     with self._frame_lock:
-        #         frame = self._current_frame
-        #
-        #     if frame is None:
-        #         # 如果还没有帧，等待一下
-        #         time.sleep(0.01)
-        #         continue
-        #
-        #     try:
-        #         # 将帧编码为 JPEG 格式
-        #         ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-        #         if not ret:
-        #             self.logger.error("无法将帧编码为 JPEG 格式。")
-        #             continue
-        #
-        #         # 返回字节流
-        #         yield (b'--frame\r\n'
-        #                b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-        #     except Exception as e:
-        #         self.logger.error(f"在生成帧时发生异常: {e}", exc_info=True)
-        #         break  # 发生错误时停止生成
-        # self.logger.info("生成视频帧请求结束。")
+        """异步生成器：负责将帧编码并推送给Web客户端"""
+        self.logger.info("开始推送视频流...")
+
+        # 等待第一帧数据，防止返回空数据导致连接断开
+        wait_count = 0
+        while self._current_frame is None and self._is_streaming and wait_count < 50:
+            await asyncio.sleep(0.1)
+            wait_count += 1
+
+        if self._current_frame is None:
+            self.logger.error("等待第一帧超时")
+            return
+
         while self._is_streaming:
             frame = None
             with self._lock:
@@ -157,59 +106,35 @@ class CameraStreamer:
                     frame = self._current_frame.copy()
 
             if frame is None:
-                await asyncio.sleep(0.05)
+                await asyncio.sleep(0.01)
                 continue
 
-            # imencode 是 CPU 密集型，如果很卡，可以考虑放到 run_in_executor
-            # 但通常 JPEG 编码在低分辨率下还算快
-            ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])  # 降低质量提升速度
+            # 编码图片 (CPU密集型操作)
+            # 质量设为 60-80 之间，平衡画质和流畅度
+            ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
 
             if ret:
+                # 构造 MJPEG 帧
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
 
-            # 关键：这里控制发送帧率，同时释放控制权给 EventLoop 处理其他请求
+            # 控制发送频率，释放控制权给 asyncio 事件循环
             await asyncio.sleep(1 / self.fps)
 
-    def stop_camera_capture(self) -> bool:
-        """
-        停止摄像头捕获并释放资源。
-        """
-        # if not self._is_streaming:
-        #     self.logger.warning("摄像头未在运行，无需停止。")
-        #     return False
-        #
-        # self.logger.info(f"尝试停止摄像头 {self.camera_index} 捕获。")
-        # self._stop_event.set()  # 设置停止事件，通知线程退出循环
-        #
-        # # 等待捕获线程结束 (可选，但推荐)
-        # if hasattr(self, '_capture_thread') and self._capture_thread.is_alive():
-        #     self.logger.info("等待摄像头捕获线程终止...")
-        #     self._capture_thread.join(timeout=5)  # 最多等待5秒
-        #     if self._capture_thread.is_alive():
-        #         self.logger.warning("摄像头捕获线程未能及时终止。")
-        #     else:
-        #         self.logger.info("摄像头捕获线程已终止。")
-        #
-        # # 确保 cap 被释放 (_read_frames_loop 退出时也会释放)
-        # if self.cap:
-        #     self.cap.release()
-        #     self.cap = None
-        #     self.logger.info(f"摄像头 {self.camera_index} 资源已最终释放。")
-        #
-        # self._is_streaming = False
-        # self._current_frame = None
-        # self.logger.info("摄像头捕获已停止。")
-        # return True
+        self.logger.info("视频流推送结束")
+
+    def stop_camera_capture(self):
+        """停止摄像头"""
+        self.logger.info("正在停止摄像头...")
         self._is_streaming = False
         self._stop_event.set()
-        if self._capture_thread:
-            self._capture_thread.join(timeout=1)
+
+        if self._capture_thread and self._capture_thread.is_alive():
+            # 这里不要 join 太久，防止阻塞 async loop
+            self._capture_thread.join(timeout=1.0)
+
+        self._current_frame = None
         self.logger.info("摄像头已停止")
 
     def is_streaming_active(self) -> bool:
-        """
-        检查摄像头流是否正在活跃。
-        """
-        # return self._is_streaming and self.cap is not None and self.cap.isOpened()
         return self._is_streaming

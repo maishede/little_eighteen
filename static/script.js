@@ -131,7 +131,8 @@ document.addEventListener('DOMContentLoaded', () => {
             videoContainer.style.cursor = 'pointer'; // 鼠标悬停在视频上时显示可点击光标
 
             // 设置视频流源
-            videoStream.src = '/video_feed';
+//            videoStream.src = '/video_feed';
+            videoStream.src = '/video_feed?t=' + Date.now();
             videoStream.alt = '摄像头视频流';
         }
     }

@@ -194,105 +194,39 @@ class DemoCommand(BaseModel):
 # --- 摄像头 API 路由 (修改这里) ---
 @app.post("/camera/start")  # 这个路由只负责“启动”摄像头服务
 async def start_camera_api():
-    # global camera_streamer
-    # logger.info("API: 收到开启摄像头请求。")
-    # if camera_streamer:
-    #     # 调用 CameraStreamer 的方法来启动内部摄像头捕获
-    #     success = camera_streamer.start_camera_capture()  # 调用 CameraStreamer 内部的启动方法
-    #     if success:
-    #         logger.info("API: 摄像头捕获已成功启动。")
-    #         return JSONResponse({"status": "success", "message": "Camera capture started."})
-    #     else:
-    #         logger.error("API: 启动摄像头捕获失败。")
-    #         raise HTTPException(status_code=500, detail="Failed to start camera capture.")
-    # logger.error("API: 摄像头流媒体服务未初始化。")
-    # raise HTTPException(status_code=503, detail="Camera streaming service not initialized.")
+    """启动摄像头后台服务"""
+    if not camera_streamer:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+
+        # 尝试启动
     if camera_streamer.start_camera_capture():
-        return {"status": "success"}
-    raise HTTPException(500, "Camera failed to start")
+        return {"status": "success", "message": "Camera started"}
+    else:
+        # 如果启动失败（例如硬件被占用），返回 500
+        raise HTTPException(status_code=500, detail="Failed to open camera hardware")
 
 
 @app.get("/video_feed")  # 获取视频流
 async def video_feed():
-    # global camera_streamer
-    # logger.info("API: 收到视频流请求。")
-    # if camera_streamer and camera_streamer.is_streaming_active():
-    #     # 这里直接返回生成器，StreamingResponse 会处理好 MIME 类型
-    #     return StreamingResponse(camera_streamer.generate_frames(),
-    #                              media_type="multipart/x-mixed-replace; boundary=frame")
-    # else:
-    #     logger.warning("API: 视频流未激活或摄像头未启动。尝试返回占位符。")
-    #     # 返回一个占位符图像
-    #     try:
-    #         placeholder_path = static_files_dir / "images" / "camera_off.png"  # 假设您有一个预设的图片
-    #
-    #         # 检查是否有预设的占位图
-    #         if placeholder_path.exists() and placeholder_path.is_file():
-    #             with open(placeholder_path, "rb") as f:
-    #                 image_data = f.read()
-    #             logger.info(f"返回预设占位符图片: {placeholder_path}")
-    #
-    #             # 注意：这里需要确保返回的是一个生成器，即使只有一个图片也要包装
-    #             async def generate_placeholder_image():
-    #                 yield (b'--frame\r\n'
-    #                        b'Content-Type: image/png\r\n\r\n' + image_data + b'\r\n')
-    #
-    #             return StreamingResponse(generate_placeholder_image(),
-    #                                      media_type="multipart/x-mixed-replace; boundary=frame")
-    #         else:
-    #             logger.warning("未找到预设占位符图片，生成默认灰色图片。")
-    #
-    #             # 导入 numpy (确保在文件顶部也导入了，这里是双重保险)
-    #             try:
-    #                 import numpy as np
-    #             except ImportError:
-    #                 logger.error("NumPy 模块未安装。无法生成默认灰色占位符图片。请安装：pip install numpy")
-    #                 raise HTTPException(status_code=500, detail="NumPy not installed, cannot generate placeholder.")
-    #
-    #             # 使用 NumPy 创建一个简单的灰色图像作为占位符
-    #             # 假设我们希望占位符是 640x480 的图像，颜色为 (100, 100, 100) 灰色
-    #             # 这是一个标准的 NumPy 数组，OpenCV 可以正确处理
-    #             placeholder_frame = np.full((480, 640, 3), (100, 100, 100), dtype=np.uint8)
-    #
-    #             ret, buffer = cv2.imencode('.jpg', placeholder_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-    #             if not ret:
-    #                 logger.error("无法将默认灰色占位符帧编码为 JPEG。")
-    #                 raise HTTPException(status_code=500, detail="Failed to encode placeholder image.")
-    #
-    #             # 同样，这里也需要一个生成器
-    #             async def generate_default_placeholder():
-    #                 yield (b'--frame\r\n'
-    #                        b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-    #
-    #             return StreamingResponse(generate_default_placeholder(),
-    #                                      media_type="multipart/x-mixed-replace; boundary=frame")
-    #
-    #     except Exception as e:
-    #         logger.error(f"Failed to return placeholder image: {e}", exc_info=True)
-    #         # 最终回退，如果占位符也无法生成，则直接返回错误
-    #         raise HTTPException(status_code=400,
-    #                             detail="Video stream not active or camera not started, and failed to generate placeholder.")
-    if camera_streamer.is_streaming_active():
-        # 这里直接使用 await 的生成器
-        return StreamingResponse(camera_streamer.generate_frames(),
-                                 media_type="multipart/x-mixed-replace; boundary=frame")
+    """获取视频流数据"""
+    if camera_streamer and camera_streamer.is_streaming_active():
+        # 返回 StreamingResponse，使用 multipart/x-mixed-replace 格式
+        return StreamingResponse(
+            camera_streamer.generate_frames(),
+            media_type="multipart/x-mixed-replace; boundary=frame"
+        )
     else:
-        # 返回默认图片 (略去具体实现，与原版类似但建议用静态文件)
-        raise HTTPException(400, "Camera not running")
+        # 如果摄像头没开，返回 404 或 400，前端会显示占位图
+        # 这里返回 204 No Content 或者 404 比较合适，让前端知道没图
+        return JSONResponse(status_code=404, content={"message": "Camera not running"})
 
 
 @app.post("/camera/stop")
 async def stop_camera_api():
-    # logger.info("API: 收到停止摄像头请求。")
-    # if camera_streamer:
-    #     # 调用 CameraStreamer 的方法来停止内部摄像头捕获
-    #     camera_streamer.stop_camera_capture()
-    #     logger.info("API: 摄像头捕获已停止。")
-    #     return JSONResponse({"status": "success", "message": "Camera capture stopped."})
-    # logger.error("API: 摄像头流媒体服务未初始化。")
-    # raise HTTPException(status_code=503, detail="Camera streaming service not initialized.")
-    camera_streamer.stop_camera_capture()
-    return {"status": "success"}
+    """停止摄像头服务"""
+    if camera_streamer:
+        camera_streamer.stop_camera_capture()
+    return {"status": "success", "message": "Camera stopped"}
 
 
 # --- 其他路由定义 (保持不变) ---
