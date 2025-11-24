@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 2. 摄像头控制逻辑 (大幅修改这里) ---
+    // --- 2. 摄像头控制逻辑 (无文字修正版) ---
     const videoContainer = document.querySelector('.video-container'); // 视频容器
     const videoStream = document.getElementById('videoStream'); // img 标签
     const startCameraButton = document.getElementById('startCameraButton'); // 开启按钮
@@ -71,7 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {'off'|'streaming'} state - 摄像头状态。
      */
     function setCameraState(state) {
+        // 每次状态改变，强制隐藏菜单，保证沉浸式体验
         videoContainer.classList.remove('show-controls');
+
         if (state === 'off') {
             cameraStreaming = false;
             videoContainer.classList.remove('streaming'); // 移除 streaming 状态类
@@ -82,34 +84,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 显示开启按钮，隐藏停止按钮
             startCameraButton.classList.add('active');
-            stopCameraButton.classList.remove('active'); // 确保停止按钮没有 active 类
+            stopCameraButton.classList.remove('active');
 
             startCameraButton.textContent = '开启摄像头';
             startCameraButton.disabled = false;
+
+            // 恢复停止按钮可用性
+            stopCameraButton.disabled = false;
+
         } else if (state === 'streaming') {
             cameraStreaming = true;
             videoContainer.classList.add('streaming'); // 添加 streaming 状态类
             videoStream.classList.remove('video-placeholder'); // 移除占位符样式
 
-            // 隐藏开启按钮，停止按钮由 CSS 负责在 hover 时显示
+            // 隐藏开启按钮，显示停止按钮
             startCameraButton.classList.remove('active');
-            stopCameraButton.classList.add('active'); // 停止按钮处于激活状态(虽然可能被opacity:0隐藏)
+            stopCameraButton.classList.add('active');
 
-            // 设置视频流源
+            // 设置视频流源，加时间戳防止缓存
             videoStream.src = '/video_feed?t=' + Date.now();
             videoStream.alt = '摄像头视频流';
-
         }
     }
 
     // 初始设置摄像头状态为关闭
     setCameraState('off');
 
-    // 点击视频容器的逻辑
+    // 点击视频容器的逻辑：切换菜单显示/隐藏
     if (videoContainer) {
         videoContainer.addEventListener('click', (event) => {
-            // 如果没在直播，或者点击的是开始按钮，或者点击的是停止按钮，都不处理
-            // (停止按钮的逻辑由它自己的监听器处理，并阻止冒泡)
+            // 如果没在直播，不处理
             if (!cameraStreaming) return;
             videoContainer.classList.toggle('show-controls');
         });
@@ -142,25 +146,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 停止摄像头逻辑 (点击停止图标时触发)
+    // 停止摄像头逻辑 (修复：不设置任何文字)
     if (stopCameraButton) {
         stopCameraButton.addEventListener('click', (event) => {
-            event.stopPropagation();
+            event.stopPropagation(); // 防止冒泡
             if (cameraStreaming) {
                 console.log("尝试停止摄像头流...");
-                // 暂时显示停止中状态
-                stopCameraButton.textContent = '停止中...';
+                // 仅禁用按钮，不修改文字，因为现在是小方块
                 stopCameraButton.disabled = true;
 
                 fetch('/camera/stop', {method: 'POST'})
                 .then(() => {
                     setCameraState('off');
-                    stopCameraButton.textContent = '停止';
                     stopCameraButton.disabled = false;
                 })
                 .catch(error => {
                     setCameraState('off');
-                    stopCameraButton.textContent = '停止';
                     stopCameraButton.disabled = false;
                 });
             }
@@ -176,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const text = textCommandInput.value.trim();
             if (text) {
                 console.log("发送文本命令:", text);
-                fetch('/cmd', { // 注意：这里是 /cmd 路由，不是 /control
+                fetch('/cmd', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text: text })
@@ -210,7 +211,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const asrOutput = document.getElementById('asrOutput');
 
     let websocket;
-    let isAsrActive = false;
 
     // ASR WebSocket 连接管理
     function connectAsrWebSocket() {
@@ -229,7 +229,6 @@ document.addEventListener('DOMContentLoaded', () => {
         websocket.onopen = (event) => {
             console.log("ASR WebSocket 已连接:", event);
             asrOutput.textContent = "等待语音...";
-            isAsrActive = true;
             startAsrButton.textContent = '已连接'; // 更新按钮状态
             startAsrButton.disabled = true;
             stopAsrButton.disabled = false;
@@ -243,21 +242,19 @@ document.addEventListener('DOMContentLoaded', () => {
         websocket.onerror = (event) => {
             console.error("ASR WebSocket 错误:", event);
             asrOutput.textContent = "语音识别服务错误。";
-            isAsrActive = false;
             startAsrButton.textContent = '开始语音';
             startAsrButton.disabled = false;
             stopAsrButton.disabled = true;
-            if (websocket) websocket.close(); // 发生错误时关闭连接
+            if (websocket) websocket.close();
         };
 
         websocket.onclose = (event) => {
             console.log("ASR WebSocket 已关闭:", event);
             asrOutput.textContent = "语音识别服务已停止。";
-            isAsrActive = false;
             startAsrButton.textContent = '开始语音';
             startAsrButton.disabled = false;
             stopAsrButton.disabled = true;
-            websocket = null; // 清除 WebSocket 实例
+            websocket = null;
         };
     }
 
@@ -268,7 +265,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             console.log("ASR WebSocket 未连接或已关闭。");
         }
-        isAsrActive = false;
         startAsrButton.textContent = '开始语音';
         startAsrButton.disabled = false;
         stopAsrButton.disabled = true;
