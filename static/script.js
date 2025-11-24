@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 2. 摄像头控制逻辑 (大幅修改这里) ---
     const videoContainer = document.querySelector('.video-container'); // 视频容器
     const videoStream = document.getElementById('videoStream'); // img 标签
-    const cameraOverlay = document.getElementById('cameraOverlay'); // 摄像头控制覆盖层
+//    const cameraOverlay = document.getElementById('cameraOverlay'); // 摄像头控制覆盖层
     const startCameraButton = document.getElementById('startCameraButton'); // 开启按钮
     const stopCameraButton = document.getElementById('stopCameraButton'); // 停止按钮
 
@@ -118,7 +118,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // 显示开启按钮，隐藏停止按钮
             startCameraButton.classList.add('active');
             stopCameraButton.classList.remove('active'); // 确保停止按钮没有 active 类
-            cameraOverlay.style.pointerEvents = 'auto'; // 允许点击 overlay 上的按钮 (因为 start 按钮在上面)
+
+//            cameraOverlay.style.pointerEvents = 'auto'; // 允许点击 overlay 上的按钮 (因为 start 按钮在上面)
             videoContainer.style.cursor = 'default'; // 恢复默认光标
         } else if (state === 'streaming') {
             cameraStreaming = true;
@@ -127,58 +128,78 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 隐藏开启按钮，停止按钮由 CSS 负责在 hover 时显示
             startCameraButton.classList.remove('active');
-            cameraOverlay.style.pointerEvents = 'auto'; // 允许点击事件，但停止按钮的 pointer-events 由 CSS 控制
-            videoContainer.style.cursor = 'pointer'; // 鼠标悬停在视频上时显示可点击光标
+            stopCameraButton.classList.add('active'); // 停止按钮处于激活状态(虽然可能被opacity:0隐藏)
+
+//            cameraOverlay.style.pointerEvents = 'auto'; // 允许点击事件，但停止按钮的 pointer-events 由 CSS 控制
+//            videoContainer.style.cursor = 'pointer'; // 鼠标悬停在视频上时显示可点击光标
 
             // 设置视频流源
 //            videoStream.src = '/video_feed';
             videoStream.src = '/video_feed?t=' + Date.now();
             videoStream.alt = '摄像头视频流';
+
+            videoContainer.style.cursor = 'pointer'; // 提示用户可以点击视频
         }
     }
 
     // 初始设置摄像头状态为关闭
     setCameraState('off');
 
+    // 点击视频容器的逻辑
+    if (videoContainer) {
+        videoContainer.addEventListener('click', (event) => {
+            // 如果没在直播，或者点击的是开始按钮，或者点击的是停止按钮，都不处理
+            // (停止按钮的逻辑由它自己的监听器处理，并阻止冒泡)
+            if (!cameraStreaming) return;
+
+            // 检查当前是否显示了蒙版
+            const isControlsVisible = videoContainer.classList.contains('show-controls');
+
+            if (isControlsVisible) {
+                // 如果蒙版是显示的，且点击了蒙版空白处（不是按钮），则隐藏蒙版
+                // 注意：因为 stop 按钮会阻止冒泡，所以这里 event.target 通常就是 .camera-overlay
+                console.log("点击空白处，隐藏蒙版");
+                videoContainer.classList.remove('show-controls');
+            } else {
+                // 如果蒙版是隐藏的，点击视频任何地方，显示蒙版
+                console.log("点击视频，显示蒙版");
+                videoContainer.classList.add('show-controls');
+            }
+        });
+    }
 
     // 开启摄像头逻辑
     if (startCameraButton) {
-        startCameraButton.addEventListener('click', () => {
+        startCameraButton.addEventListener('click', (event) => {
+            event.stopPropagation(); // 防止冒泡
             if (!cameraStreaming) {
                 console.log("尝试向后端发送启动摄像头服务请求...");
                 // 暂时显示加载状态，以免用户多次点击
                 startCameraButton.textContent = '加载中...';
                 startCameraButton.disabled = true;
 
-                fetch('/camera/start', {
-                    method: 'POST'
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => { throw new Error(err.detail || `HTTP error! status: ${response.status}`); });
-                    }
-                    return response.json();
-                })
+                fetch('/camera/start', {method: 'POST'})
+                .then(r => r.ok ? r.json() : Promise.reject(r))
                 .then(data => {
                     console.log('启动摄像头服务响应:', data);
                     if (data.status === 'success') {
                         setCameraState('streaming'); // 设置为流式传输状态
-                        startCameraButton.textContent = '开启摄像头'; // 恢复文本，但CSS会隐藏它
-                        startCameraButton.disabled = false;
+//                        startCameraButton.textContent = '开启摄像头'; // 恢复文本，但CSS会隐藏它
+//                        startCameraButton.disabled = false;
                         console.log("摄像头服务已启动，正在从 /video_feed 获取视频流。");
                     } else {
                         alert('启动摄像头服务失败: ' + (data.message || '未知错误'));
                         setCameraState('off'); // 保持关闭状态
-                        startCameraButton.textContent = '开启摄像头'; // 恢复文本
-                        startCameraButton.disabled = false;
+//                        startCameraButton.textContent = '开启摄像头'; // 恢复文本
+//                        startCameraButton.disabled = false;
                     }
                 })
                 .catch(error => {
                     console.error('开启摄像头服务失败:', error.message);
                     alert('无法开启摄像头服务。请检查服务器日志。');
                     setCameraState('off'); // 保持关闭状态
-                    startCameraButton.textContent = '开启摄像头'; // 恢复文本
-                    startCameraButton.disabled = false;
+//                    startCameraButton.textContent = '开启摄像头'; // 恢复文本
+//                    startCameraButton.disabled = false;
                 });
             }
         });
@@ -186,26 +207,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 停止摄像头逻辑 (点击停止图标时触发)
     if (stopCameraButton) {
-        stopCameraButton.addEventListener('click', () => {
+        stopCameraButton.addEventListener('click', (event) => {
+            event.stopPropagation();
             if (cameraStreaming) {
                 console.log("尝试停止摄像头流...");
                 // 暂时显示停止中状态
                 stopCameraButton.textContent = '停止中...';
                 stopCameraButton.disabled = true;
 
-                fetch('/camera/stop', {
-                    method: 'POST'
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => { throw new Error(err.detail || `HTTP error! status: ${response.status}`); });
-                    }
-                    return response.json();
-                })
+                fetch('/camera/stop', {method: 'POST'})
+                .then(r => r.ok ? r.json() : Promise.reject(r))
                 .then(data => {
-                    console.log('停止摄像头流成功:', data.message);
-                    setCameraState('off'); // 设置为关闭状态
-                    stopCameraButton.textContent = '停止'; // 恢复文本
+                    setCameraState('off');
+                    stopCameraButton.textContent = '停止';
                     stopCameraButton.disabled = false;
                 })
                 .catch(error => {

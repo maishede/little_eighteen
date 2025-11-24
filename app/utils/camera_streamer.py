@@ -35,12 +35,17 @@ class CameraStreamer:
         self.logger.info(f"正在打开摄像头 {self.camera_index}...")
         try:
             # 在树莓派上，建议指定 backend，有时能提高兼容性
-            # self.cap = cv2.VideoCapture(self.camera_index, cv2.CAP_V4L2)
-            self.cap = cv2.VideoCapture(self.camera_index)
+            self.cap = cv2.VideoCapture(self.camera_index, cv2.CAP_V4L2)
+            # self.cap = cv2.VideoCapture(self.camera_index)
 
             if not self.cap.isOpened():
                 self.logger.error(f"无法打开摄像头 {self.camera_index}")
                 return False
+
+            # 2. 【绝对关键】强制设置为 MJPEG 格式
+            # 树莓派 CSI 摄像头如果不加这一行，OpenCV 默认请求 YUYV 格式，
+            # 在高分辨率下会导致带宽不足或直接读不到数据。
+            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
 
             # 设置参数
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.resolution[0])
@@ -48,6 +53,14 @@ class CameraStreamer:
             self.cap.set(cv2.CAP_PROP_FPS, self.fps)
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # 关键：减少延迟
 
+            # --- 调试信息：打印实际生效的参数 ---
+            actual_w = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+            actual_h = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+            self.logger.info(f"摄像头已启动。实际分辨率: {actual_w}x{actual_h}")
+            fourcc = int(self.cap.get(cv2.CAP_PROP_FOURCC))
+            # 将四字符代码解码为字符串
+            codec = "".join([chr((fourcc >> 8 * i) & 0xFF) for i in range(4)])
+            self.logger.info(f"摄像头已就绪。实际分辨率: {actual_w}x{actual_h}, 编码: {codec}")
             self._is_streaming = True
             self._stop_event.clear()
             self._current_frame = None  # 重置当前帧
