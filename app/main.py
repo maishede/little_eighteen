@@ -31,9 +31,12 @@ from app.services.core import MotorControl
 from app.utils.regex_command import CommandExecutor, VoiceCommandParser
 from app.utils.robot_demos import RobotDemos
 from app.utils.camera_streamer import CameraStreamer  # <-- 新增导入 CameraStreamer
-from app.network_manager import auto_network_mode
-import threading
-from app.wifi_setup import router as setup_router
+# from app.network_manager import auto_network_mode
+# import threading
+# from app.wifi_setup import router as setup_router
+
+from app.network_manager_nm import start_network_watcher
+from app.wifi_setup_nm import router as setup_router
 
 # --- 日志设置 (保持不变) ---
 # 确保日志目录存在
@@ -77,7 +80,9 @@ camera_streamer: CameraStreamer = None
 # --- 应用生命周期管理 (修改这里，不再在启动时尝试打开摄像头) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    threading.Thread(target=auto_network_mode, daemon=True).start()
+    # threading.Thread(target=auto_network_mode, daemon=True).start()
+    # 启动网络自动切换
+    start_network_watcher()
 
     global motor_controller, command_executor, voice_parser, robot_demos, camera_streamer
     logger.info("应用启动中...")
@@ -98,7 +103,7 @@ async def lifespan(app: FastAPI):
 
         camera_streamer = CameraStreamer(CAMERA_INDEX, CAMERA_FPS, CAMERA_RESOLUTION, logger)
 
-        app.include_router(setup_router)
+        app.include_router(setup_router)  # 加上这行
         yield
     except Exception as e:
         logger.error(f"应用启动失败: {e}", exc_info=True)
