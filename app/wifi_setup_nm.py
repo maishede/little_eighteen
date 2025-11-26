@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/setup")
 async def setup_page():
-    return """
+    return HTMLResponse("""
     <!DOCTYPE html>
     <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Little18 配网</title>
@@ -34,7 +34,7 @@ async def setup_page():
             <p style="margin-top:30px;font-size:14px">热点密码：88888888</p>
         </div>
     </body></html>
-    """
+    """)
 
 
 @router.post("/setup/connect")
