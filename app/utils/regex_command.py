@@ -55,19 +55,6 @@ class CommandExecutor:
         self._running = False
         # 清空队列，防止线程阻塞
         await self.command_queue.put(None)
-        # with self.command_queue.mutex:
-        #     self.command_queue.queue.clear()
-        # self.command_queue.put(None)  # 发送哨兵值，解除execute_commands_loop的阻塞
-        #
-        # if self._command_executor_thread and self._command_executor_thread.is_alive():
-        #     self._command_executor_thread.join(timeout=1)
-        #     self.logger.info("命令执行模块已停止")
-        # if self._distance_monitor_thread and self._distance_monitor_thread.is_alive():
-        #     self._distance_monitor_thread.join(timeout=1)
-        #     self.logger.info("距离检测模块已停止")
-        # self.control.stop()  # 确保停止所有电机
-        # self.control.cleanup()  # 清理GPIO
-        # self.logger.info("GPIO 清理完毕。")
         if self._command_task:
             try:
                 await asyncio.wait_for(self._command_task, timeout=1.0)
@@ -88,24 +75,6 @@ class CommandExecutor:
 
     async def add_command(self, command: str):
         """将命令添加到队列"""
-        # if command == "stop":
-        #     with self.command_queue.mutex:
-        #         self.command_queue.queue.clear()  # 清空所有等待中的命令
-        #     self.command_queue.put("stop")  # 只添加停止命令
-        #     self.logger.info("收到停止命令，已清除队列并立即执行停止。")
-        #     # 如果是主动停止，也应清除宽限期，允许立即重新开始距离检测
-        #     self._distance_monitor_grace_period_active = False
-        # elif command == "move_back":
-        #     # 当收到后退命令时，启动一个宽限期，以便小车能够完成避障动作
-        #     self._distance_monitor_grace_period_active = True
-        #     self._distance_monitor_grace_period_end_time = time.time() + self.GRACE_PERIOD_DURATION
-        #     self.logger.info(f"开启距离检测宽限期，持续 {self.GRACE_PERIOD_DURATION} 秒，应对后退命令。")
-        #     self.command_queue.put(command)
-        #     self.logger.info(f"命令 '{command}' 已加入队列")
-        # else:
-        #     # 对于其他命令，直接添加到队列末尾
-        #     self.command_queue.put(command)
-        #     self.logger.info(f"命令 '{command}' 已加入队列")
         if command == "stop":
             # 清空队列：asyncio queue 没有 clear 方法，需要手动排空
             while not self.command_queue.empty():
@@ -130,34 +99,6 @@ class CommandExecutor:
 
     async def _execute_commands_loop(self):
         """命令执行循环"""
-        # while self._running:
-        #     try:
-        #         cmd = self.command_queue.get(timeout=0.1)  # 增加 timeout 防止在停止时阻塞
-        #     except Empty:
-        #         continue  # 队列为空，继续循环检查运行状态
-        #
-        #     if cmd is None:  # 哨兵值，用于停止线程
-        #         break
-        #     self.logger.info(f"正在执行命令: {cmd}")
-        #     try:
-        #         # 针对原地转向命令，特殊处理执行时间
-        #         if cmd in ["turn_left", "turn_right"]:
-        #             self.control.distance_detection_enabled = False  # 转向时禁用距离检测
-        #             getattr(self.control, cmd)()
-        #             time.sleep(1)  # 转向命令执行1秒
-        #             self.control.stop()  # 转向后停止
-        #             self.control.distance_detection_enabled = True  # 重新启用距离检测
-        #         elif cmd == "stop":
-        #             self.control.stop()
-        #             self.control.distance_detection_enabled = True  # 停止时确保距离检测启用
-        #         else:  # 其他所有运动命令（前进、后退、平移、斜向移动等）
-        #             getattr(self.control, cmd)()
-        #     except AttributeError:
-        #         self.logger.error(f"错误: 不支持的命令 '{cmd}'")
-        #     except Exception as e:
-        #         self.logger.error(f"执行命令 '{cmd}' 时发生错误: {e}")
-        #     finally:
-        #         self.command_queue.task_done()
         while self._running:
             try:
                 # 等待命令

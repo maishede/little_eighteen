@@ -7,7 +7,8 @@ from app.config import (
     HC_SR_04_TRIG, HC_SR_04_ECHO,
     MODE_FORWARD, MODE_BACK, MODE_STOP,
     DEFAULT_TEMPERATURE, DISTANCE_BUFFER_SIZE, HC_SR_04_TIMEOUT,
-    EN1, EN2, EN3, EN4, PWM_FREQ, DEFAULT_SPEED
+    EN1, EN2, EN3, EN4, PWM_FREQ, DEFAULT_SPEED, MIN_SPEED_LIMIT,
+    CORRECTION_LF, CORRECTION_LB, CORRECTION_RF, CORRECTION_RB
 )
 
 # GPIO 常量
@@ -44,7 +45,7 @@ class MotorControl(object):
         GPIO.setup(HC_SR_04_TRIG, OUT)
         GPIO.setup(HC_SR_04_ECHO, IN)
 
-        self._current_speed = DEFAULT_SPEED
+        self._current_speed = max(MIN_SPEED_LIMIT, DEFAULT_SPEED)
 
         self.stop()  # 初始化时停车
 
@@ -76,12 +77,24 @@ class MotorControl(object):
         self._distance_detection_enabled = value
 
     def set_speed(self, speed: int):
-        self._current_speed = max(0, min(100, speed))
+        safe_speed = max(MIN_SPEED_LIMIT, min(100, speed))
+        self._current_speed = safe_speed
         self._apply_speed()
 
+    def get_speed(self):
+        return self._current_speed
+
     def _apply_speed(self):
-        for pwm in self.pwms:
-            pwm.ChangeDutyCycle(self._current_speed)
+        speed_lf = self._current_speed * CORRECTION_LF
+        speed_lb = self._current_speed * CORRECTION_LB
+        speed_rf = self._current_speed * CORRECTION_RF
+        speed_rb = self._current_speed * CORRECTION_RB
+
+        # 应用到 PWM 对象
+        self.pwm_lf.ChangeDutyCycle(speed_lf)
+        self.pwm_lb.ChangeDutyCycle(speed_lb)
+        self.pwm_rf.ChangeDutyCycle(speed_rf)
+        self.pwm_rb.ChangeDutyCycle(speed_rb)
 
     # --- 私有电机控制方法 ---
     def __set_motor_state(self, motor_in1, motor_in2, mode):

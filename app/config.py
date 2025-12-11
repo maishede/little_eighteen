@@ -43,8 +43,24 @@ DISTANCE_DETECTION_THRESHOLD = 20  # 距离小于此值时停车
 HC_SR_04_TIMEOUT = 0.03  # HC-SR04 超时时间，单位秒
 DISTANCE_MONITOR_INTERVAL = 0.1  # 距离检测间隔
 
-PWM_FREQ = 100        # 频率 100Hz
-DEFAULT_SPEED = 50    # 默认速度 50%
+PWM_FREQ = 100  # 频率 100Hz
+DEFAULT_SPEED = 50  # 默认速度 50%
+MIN_SPEED_LIMIT = 20  # 最低限制 20%
+
+# 动态避障配置 (需求3)
+# 计算公式: 停车距离 = 基础距离 + (当前速度 * 系数)
+# 例如: 速度50时 -> 10 + 50*0.4 = 30cm 停车
+#      速度100时 -> 10 + 100*0.4 = 50cm 停车
+OBSTACLE_BASE_DISTANCE = 10  # 基础安全距离 (cm)
+OBSTACLE_SPEED_FACTOR = 0.4  # 速度系数
+
+# 电机微调参数 (需求4: 解决走不直)
+# 范围 0.0 - 1.0。如果车往左偏，说明右边快了，把右边的系数调小一点
+# 1.0 表示 100% 动力输出
+CORRECTION_LF = 1.0  # 左前
+CORRECTION_LB = 1.0  # 左后
+CORRECTION_RF = 1.0  # 右前
+CORRECTION_RB = 1.0  # 右后
 
 # 运动模式常量
 MODE_FORWARD = 1
