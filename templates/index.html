@@ -6,12 +6,12 @@
     <title>智能小车控制中心</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css?v={{ range(1000, 9999) | random | int }}">
-    !-- PWA：添加到主屏幕后真全屏 -->
+    <!-- PWA配置 -->
     <link rel="manifest" href="/static/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="小十八控制">
-    <link rel="apple-touch-icon" href="/static/svgs/crab.svg"> <!-- 用你的蟹图标 -->
+    <link rel="apple-touch-icon" href="/static/svgs/crab.svg">
 </head>
 <body>
 <div class="container">
@@ -20,6 +20,7 @@
     </header>
 
     <main class="main-content">
+        <!-- 视频监控区域 -->
         <section class="video-section card">
             <h2>视频监控</h2>
             <div class="video-container">
@@ -35,8 +36,23 @@
             </div>
         </section>
 
+        <!-- 手动控制区域 -->
         <section class="control-section card">
-            <h2>手动控制</h2>
+            <h2>驾驶控制</h2>
+            
+            <!-- 新增：调速滑块 -->
+            <div class="speed-control-container">
+                <label for="speedRange">
+                    动力输出: <span id="speedValue">50</span>%
+                </label>
+                <div class="slider-wrapper">
+                    <span class="speed-icon low">🐢</span>
+                    <input type="range" id="speedRange" min="0" max="100" value="50" class="speed-slider">
+                    <span class="speed-icon high">🐇</span>
+                </div>
+            </div>
+
+            <!-- 方向控制网格 -->
             <div class="control-grid">
                 <button id="moveForwardLeftButton" class="btn btn-control btn-diag-up-left"
                         data-command="move_left_forward">
@@ -81,61 +97,12 @@
                 </button>
             </div>
         </section>
-
-        <section class="voice-text-section card">
-            <h2>语音/文本控制</h2>
-            <div class="voice-input-group">
-                <input type="text" id="textCommandInput" placeholder="输入命令，例如：前进">
-                <button id="sendTextCommandButton" class="btn btn-primary">发送</button>
-            </div>
-            <div class="voice-feedback">
-                <button id="startAsrButton" class="btn btn-secondary">
-                    <img src="/static/svgs/microphone.svg" alt="开始语音" class="icon"> 开始语音
-                </button>
-                <button id="stopAsrButton" class="btn btn-secondary">
-                    <img src="/static/svgs/microphone.svg" alt="停止语音" class="icon icon-muted"> 停止语音
-                </button>
-                <p>识别结果: <span id="asrOutput">等待语音...</span></p>
-            </div>
-        </section>
-
-        <section class="demo-section card">
-            <h2>机器人演示</h2>
-            <div class="demo-controls">
-                <select id="demoSelect">
-                    <option value="">选择演示模式</option>
-                    <option value="digit_0">数字 0</option>
-                    <option value="digit_1">数字 1</option>
-                    <option value="digit_2">数字 2</option>
-                    <option value="digit_3">数字 3</option>
-                    <option value="digit_4">数字 4</option>
-                    <option value="digit_5">数字 5</option>
-                    <option value="digit_6">数字 6</option>
-                    <option value="digit_7">数字 7</option>
-                    <option value="digit_8">数字 8</option>
-                    <option value="digit_9">数字 9</option>
-                    <option value="crab_walk">蟹步舞</option>
-                    <option value="box_step">方步</option>
-                    <option value="s_curve">S 形曲线</option>
-                    <option value="z_curve">Z 形曲线</option>
-                    <option value="spin_fast">原地高速旋转</option>
-                </select>
-                <button id="startDemoButton" class="btn btn-primary">
-                    <img src="/static/svgs/crab.svg" alt="开始演示" class="icon"> 开始演示
-                </button>
-                <button id="stopDemoButton" class="btn btn-secondary">
-                    <img src="/static/svgs/stop_sign.svg" alt="停止演示" class="icon"> 停止演示
-                </button>
-            </div>
-        </section>
     </main>
 
     <footer class="footer">
         <p>&copy; 小十八 智能小车控制中心. All rights reserved.</p>
     </footer>
 </div>
-
-
 
 <script src="/static/script.js?v={{ range(1000, 9999) | random | int }}"></script>
 </body>

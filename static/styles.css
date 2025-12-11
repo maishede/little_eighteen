@@ -31,12 +31,13 @@ body {
 }
 
 .container {
-    max-width: 1200px;
+    max-width: 800px; /* 缩小最大宽度，因为去掉了两列，居中更好看 */
     margin: 0 auto;
     padding: var(--spacing-unit);
     flex-grow: 1;
     display: flex;
     flex-direction: column;
+    width: 100%;
 }
 
 .header {
@@ -50,16 +51,15 @@ body {
 
 .header h1 {
     color: var(--primary-color);
-    font-size: 2.5rem;
+    font-size: 2rem;
     font-weight: 700;
     letter-spacing: 1px;
 }
 
 .main-content {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: var(--spacing-unit);
-    margin-bottom: var(--spacing-unit);
 }
 
 .card {
@@ -73,7 +73,7 @@ body {
 
 .card h2 {
     color: var(--secondary-color);
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     margin-bottom: var(--spacing-unit);
     text-align: center;
 }
@@ -83,69 +83,35 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 1.2em 1.8em;
-    font-size: 1.2rem;
+    padding: 0.8em 1.2em;
+    font-size: 1.1rem;
     font-weight: 700;
     cursor: pointer;
-    border: 3px solid var(--primary-dark);
+    border: none;
     border-radius: var(--border-radius);
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: transform 0.1s;
     text-decoration: none;
     color: white;
-    gap: 12px;
+    gap: 10px;
     white-space: nowrap;
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .btn:active {
-    transform: translateY(0);
-    box-shadow: none;
+    transform: scale(0.95);
 }
 
-.btn-primary {
-    background-color: var(--primary-color);
-    border-color: var(--primary-dark);
-}
-
-.btn-secondary {
-    background-color: var(--secondary-color);
-    border-color: var(--secondary-dark);
-}
-
-.btn-secondary:hover {
-    background-color: var(--secondary-dark);
-}
+.btn-primary { background-color: var(--primary-color); }
+.btn-primary:hover { background-color: var(--primary-dark); }
 
 .btn .icon {
-    width: 32px;
-    height: 32px;
-    filter: none;
-    transition: transform 0.2s ease;
+    width: 24px;
+    height: 24px;
 }
-
-.icon-rotate-90 { transform: rotate(90deg); }
-.icon-rotate-180 { transform: rotate(180deg); }
-.icon-rotate-270 { transform: rotate(270deg); }
-.icon-flip-horizontal { transform: scaleX(-1); }
-.icon-flip-vertical { transform: scaleY(-1); }
-.icon-rotate-180-flip { transform: rotate(180deg) scaleX(-1); }
-.icon-muted { opacity: 0.6; }
 
 /* --- 视频监控区域样式 --- */
-.video-section {
-    grid-column: span 1;
-    min-height: 400px;
-}
-
 .video-container {
     position: relative;
     width: 100%;
-    max-width: 640px;
     aspect-ratio: 4/3;
     overflow: hidden;
     background-color: #000;
@@ -154,35 +120,22 @@ body {
     justify-content: center;
     align-items: center;
     box-shadow: var(--shadow-light) 0px 5px 15px;
-    cursor: default;
 }
 
-/* 视频流图片 */
 #videoStream {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    display: block;
-    background-color: var(--card-background);
-    border-radius: var(--border-radius);
+    background-color: #f0f0f0;
 }
 
-/* 初始占位符样式 */
 .video-placeholder {
-    width: 100%;
-    height: 100%;
-    background-color: var(--card-background);
-    color: var(--text-color);
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 1.5rem;
-    font-weight: 500;
 }
 
-/* === 摄像头控制相关样式 (最终修复版) === */
-
-/* 覆盖层容器：利用 Flexbox 实现完美居中 */
+/* 摄像头覆盖层 */
 .camera-overlay {
     position: absolute;
     top: 0;
@@ -190,330 +143,163 @@ body {
     width: 100%;
     height: 100%;
     display: flex;
-    justify-content: center; /* 水平居中 */
-    align-items: center;     /* 垂直居中 */
+    justify-content: center;
+    align-items: center;
     z-index: 10;
     transition: opacity 0.2s ease;
 }
 
-/* 按钮通用控制 */
 .camera-control-btn {
-    /* 强制移除绝对定位，让 Flexbox 自动居中 */
     position: static !important;
-    transform: none !important;
-    margin: 0 !important;
-
-    z-index: 20;
-    display: none; /* 默认隐藏，防止重叠 */
+    display: none;
     pointer-events: auto;
 }
 
-/* 激活状态的控制按钮 (当前可见的按钮) */
-.camera-control-btn.active {
-    display: inline-flex;
-}
+.camera-control-btn.active { display: inline-flex; }
 
-/* --- 场景 1: 摄像头关闭 (默认状态) --- */
-/* 显示蒙版(微灰色)，显示开启按钮 */
+/* 非直播状态 */
 .video-container:not(.streaming) .camera-overlay {
     opacity: 1;
     background-color: rgba(0, 0, 0, 0.05);
 }
 
-/* --- 场景 2: 摄像头正在直播 (沉浸模式) --- */
-/* 隐藏蒙版，完全透明，点击穿透 */
+/* 直播状态 (沉浸) */
 .video-container.streaming .camera-overlay {
     opacity: 0;
     background-color: transparent;
     pointer-events: none;
 }
-.video-container.streaming {
-    cursor: pointer; /* 手型光标 */
-}
+.video-container.streaming { cursor: pointer; }
 
-/* --- 场景 3: 摄像头直播中 + 唤出菜单 (.show-controls) --- */
-/* 显示蒙版(透明)，显示停止按钮，恢复点击捕获 */
+/* 直播 + 菜单显示 */
 .video-container.streaming.show-controls .camera-overlay {
     opacity: 1;
-    background-color: transparent; /* 纯透明 */
+    background-color: rgba(0,0,0,0.1);
     pointer-events: auto;
 }
 
-/* === 停止按钮样式：红色小方块 === */
+/* 停止按钮 (红色方块) */
 .btn-stop-square {
-    /* 尺寸 */
-    width: 40px;
-    height: 40px;
-
-    /* 颜色与形状 */
-    background-color: #FF453A; /* 鲜艳的红色 */
-    border-radius: 6px;        /* 轻微圆角 */
-    border: 2px solid rgba(255, 255, 255, 0.9); /* 白边增加对比度 */
-
-    /* 阴影 */
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-
-    /* 交互 */
+    width: 50px;
+    height: 50px;
+    background-color: #FF453A;
+    border-radius: 12px;
+    border: 3px solid white;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     cursor: pointer;
-    padding: 0;
-
-    /* 重新定义变换 */
-    transition: transform 0.1s ease, background-color 0.2s;
 }
 
-/* 悬停效果 */
-.btn-stop-square:hover {
-    background-color: #FF3B30;
-    transform: scale(1.1) !important; /* 强制覆盖 */
+/* --- 调速滑块样式 (新增) --- */
+.speed-control-container {
+    margin-bottom: 25px;
+    padding: 15px;
+    background-color: var(--background-color);
+    border-radius: 15px;
+    text-align: center;
 }
 
-/* 点击效果 */
-.btn-stop-square:active {
-    transform: scale(0.9) !important; /* 强制覆盖 */
+.speed-control-container label {
+    font-weight: bold;
+    color: var(--secondary-color);
+    display: block;
+    margin-bottom: 10px;
+    font-size: 1.1rem;
 }
 
-/* === 摄像头样式结束 === */
+.slider-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 
+.speed-icon {
+    font-size: 1.2rem;
+}
+
+/* 滑块本体美化 */
+.speed-slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 10px;
+    border-radius: 5px;
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.9;
+    transition: opacity .2s;
+}
+
+.speed-slider:hover { opacity: 1; }
+
+.speed-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+}
+
+.speed-slider::-moz-range-thumb {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+}
 
 /* --- 手动控制区域样式 --- */
-.control-section {
-    grid-column: span 1;
-}
-
 .control-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+    gap: 15px;
     justify-items: center;
     align-items: center;
+    max-width: 400px;
+    margin: 0 auto;
 }
 
 .btn-control {
-    width: 80px;
-    height: 80px;
+    width: 70px;
+    height: 70px;
     padding: 0;
     border-radius: 50%;
     background-color: var(--secondary-color);
-    border-color: var(--secondary-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
 }
 
 .btn-control .icon {
-    width: 40px;
-    height: 40px;
+    width: 35px;
+    height: 35px;
 }
 
-.btn-control:hover {
-    background-color: var(--secondary-dark);
-}
+.btn-stop { background-color: var(--primary-color); }
+.btn-turn { background-color: var(--accent-color); }
+.btn-side-move { background-color: #6c757d; }
 
-/* 停止按钮特殊样式 */
-.btn-stop {
-    background-color: var(--primary-color);
-    border-color: var(--primary-dark);
-}
-
-.btn-stop:hover {
-    background-color: var(--primary-dark);
-}
-
-/* 转向按钮特殊样式 */
-.btn-turn {
-    background-color: var(--accent-color);
-    border-color: #e0ac00;
-}
-
-.btn-turn:hover {
-    background-color: #e0ac00;
-}
-
-/* 侧向移动按钮 */
-.btn-side-move {
-    background-color: #6c757d;
-    border-color: #5a6268;
-}
-
-.btn-side-move:hover {
-    background-color: #5a6268;
-}
-
-/* --- 语音/文本控制区域样式 --- */
-.voice-text-section {
-    grid-column: span 1;
-}
-
-.voice-input-group {
-    display: flex;
-    gap: 10px;
-    margin-bottom: var(--spacing-unit);
-}
-
-#textCommandInput {
-    flex-grow: 1;
-    padding: 10px 15px;
-    border: 2px solid var(--border-color);
-    border-radius: var(--border-radius);
-    font-size: 1rem;
-    background-color: var(--card-background);
-    color: var(--text-color);
-}
-
-#textCommandInput:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(var(--primary-color), 0.2);
-}
-
-.voice-feedback {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
-}
-
-#asrOutput {
-    background-color: var(--background-color);
-    padding: 8px 12px;
-    border-radius: var(--border-radius);
-    font-style: italic;
-    flex-grow: 1;
-    min-width: 150px;
-}
-
-/* --- 机器人演示区域样式 --- */
-.demo-section {
-    grid-column: span 1;
-}
-
-.demo-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
-}
-
-#demoSelect {
-    flex-grow: 1;
-    padding: 10px 15px;
-    border: 2px solid var(--border-color);
-    border-radius: var(--border-radius);
-    font-size: 1rem;
-    background-color: var(--card-background);
-    color: var(--text-color);
-    appearance: none;
-    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333333%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13.2-6.4H18.6c-5%200-9.3%201.8-13.2%206.4-3.9%204.6-5.8%2010.5-5.8%2017.4v140.2c0%207%201.9%2012.9%205.8%2017.4%203.9%204.6%208.2%206.4%2013.2%206.4h255.2c5%200%209.3-1.8%2013.2-6.4%203.9-4.6%205.8-10.5%205.8-17.4V86.8c0-7-1.9-12.9-5.8-17.4z%22%2F%3E%3C%2Fsvg%3E');
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 12px;
-    padding-right: 30px;
-}
-
-#demoSelect:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(var(--primary-color), 0.2);
-}
+/* 图标旋转类 */
+.icon-rotate-90 { transform: rotate(90deg); }
+.icon-rotate-180 { transform: rotate(180deg); }
+.icon-rotate-270 { transform: rotate(270deg); }
+.icon-flip-horizontal { transform: scaleX(-1); }
 
 /* --- 页脚样式 --- */
 .footer {
     text-align: center;
-    margin-top: var(--spacing-unit);
-    padding: var(--spacing-unit) 0;
-    color: var(--text-color);
-    opacity: 0.8;
+    margin-top: auto;
+    color: #666;
+    font-size: 0.9rem;
 }
 
-/* --- 响应式设计 --- */
-@media (max-width: 767px) {
-    .container {
-        padding: calc(var(--spacing-unit) / 2);
-    }
-
-    .header h1 {
-        font-size: 2rem;
-    }
-
-    .main-content {
-        grid-template-columns: 1fr;
-        gap: calc(var(--spacing-unit) / 2);
-    }
-
-    .card {
-        padding: calc(var(--spacing-unit) / 2);
-    }
-
-    .card h2 {
-        font-size: 1.5rem;
-        margin-bottom: calc(var(--spacing-unit) / 2);
-    }
-
-    .btn {
-        font-size: 1rem;
-        padding: 0.8em 1.2em;
-        gap: 8px;
-    }
-
-    .btn .icon {
-        width: 24px;
-        height: 24px;
-    }
-
-    .control-grid {
-        gap: 5px;
-    }
-
-    .btn-control {
-        width: 60px;
-        height: 60px;
-    }
-
-    .btn-control .icon {
-        width: 30px;
-        height: 30px;
-    }
-
-    .voice-input-group, .voice-feedback, .demo-controls {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
-    }
-
-    #textCommandInput, #demoSelect {
-        padding: 8px 10px;
-    }
-}
-
-/* iOS 伪全屏：隐藏状态栏 + 满屏视觉 */
-.ios-fullscreen {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    overflow: hidden !important;
-    z-index: 999999 !important;
-    background: var(--background-color) !important;
-}
-
-/* 隐藏滚动条 + 地址栏 */
-.ios-fullscreen body {
-    padding: 0 !important;
-    margin: 0 !important;
-    height: 100vh !important;
-    overflow: hidden !important;
-}
-
-/* 隐藏 iOS Safari 地址栏（滚动时自动） */
-@supports (-webkit-touch-callout: none) {
-    .ios-fullscreen {
-        height: 100vh;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-    }
-}
-
-/* 全屏时隐藏全屏按钮（不碍眼） */
-.ios-fullscreen .fullscreen-btn {
-    opacity: 0.8; /* 保持可见，但淡化 */
+/* --- 移动端适配 --- */
+@media (max-width: 600px) {
+    .container { padding: 15px; }
+    .btn-control { width: 60px; height: 60px; }
+    .btn-control .icon { width: 30px; height: 30px; }
+    .control-grid { gap: 10px; }
 }

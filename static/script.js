@@ -1,12 +1,11 @@
 // static/script.js
 
-// 用于限制命令发送频率的变量 (节流)
+// 节流控制：防止点击过快发送过多请求
 let lastCommandTime = 0;
-const commandThrottleInterval = 50; // 限制每 50 毫秒发送一次命令
+const commandThrottleInterval = 50;
 
 /**
- * 发送控制命令到后端。
- * @param {string} command - 控制命令字符串，例如 'move_forward', 'stop'。
+ * 发送运动控制命令到后端
  */
 function sendCommand(command) {
     const currentTime = Date.now();
@@ -14,7 +13,10 @@ function sendCommand(command) {
         return;
     }
     lastCommandTime = currentTime;
-    console.log("发送控制命令:", command);
+
+    // 增加触觉反馈 (如果设备支持)
+    if (navigator.vibrate) navigator.vibrate(10);
+
     fetch(`/control`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -23,303 +25,135 @@ function sendCommand(command) {
 }
 
 /**
- * 启动指定的演示功能。
- * @param {string} demoName - 演示功能的名称。
+ * 发送速度设置命令到后端
+ * 使用节流防止滑动时请求过于频繁
  */
-function startDemo(demoName) {
-    fetch(`/demo/start`, {
+let lastSpeedTime = 0;
+const speedThrottleInterval = 100; // 100ms 发送一次
+
+function setSpeed(speedVal) {
+    const currentTime = Date.now();
+    if (currentTime - lastSpeedTime < speedThrottleInterval) {
+        return;
+    }
+    lastSpeedTime = currentTime;
+
+    fetch(`/control/speed`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ demo_name: demoName })
-    }).then(r => r.json()).then(d => console.log(d.message));
+        body: JSON.stringify({ speed: parseInt(speedVal) })
+    })
+    .then(r => r.json())
+    .then(data => console.log('速度已更新:', data))
+    .catch(e => console.error('调速失败:', e));
 }
 
-/**
- * 停止当前正在运行的演示功能。
- */
-function stopDemo() {
-    fetch(`/demo/stop`, { method: 'POST' })
-    .then(r => r.json()).then(d => console.log(d.message));
-}
-
-function toggleFullscreen() {
-    if (isIOS()) {
-        // iOS 专杀：隐藏状态栏 + 滚动条 + 键盘
-        document.body.classList.toggle('ios-fullscreen');
-        document.documentElement.scrollTop = 0; // 强制回顶
-        // 隐藏地址栏（Safari 专属）
-        window.scrollTo(0, 1);
-        console.log('iOS 伪全屏切换');
-    } else {
-        // 非 iOS：用标准 Fullscreen API
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen?.() ||
-            document.documentElement.webkitRequestFullscreen?.();
-        } else {
-            document.exitFullscreen?.() || document.webkitExitFullscreen?.();
-        }
-    }
-}
-
-// 检测 iOS
-function isIOS() {
-    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-}
-
-// --- 页面加载完成后的事件绑定 ---
+// 页面加载完成
 document.addEventListener('DOMContentLoaded', () => {
-    // --- 1. 控制按钮事件绑定 (使用事件委托) ---
+
+    // 1. 方向控制按钮绑定
     const controlGrid = document.querySelector('.control-grid');
     if (controlGrid) {
+        // 使用事件委托处理所有按钮点击
         controlGrid.addEventListener('click', (event) => {
-            // 找到被点击的最近的 .btn-control 元素
             const targetButton = event.target.closest('.btn-control');
             if (targetButton && targetButton.dataset.command) {
-                const command = targetButton.dataset.command;
-                sendCommand(command);
+                sendCommand(targetButton.dataset.command);
             }
+        });
+
+        // 增加触摸支持 (防止点击延迟)
+        controlGrid.addEventListener('touchstart', (event) => {
+            const targetButton = event.target.closest('.btn-control');
+            if (targetButton) {
+                event.preventDefault(); // 防止触发 click
+                if (targetButton.dataset.command) {
+                    sendCommand(targetButton.dataset.command);
+                    targetButton.classList.add('active-touch'); // 模拟按压效果
+                }
+            }
+        });
+
+        controlGrid.addEventListener('touchend', (event) => {
+             const targetButton = event.target.closest('.btn-control');
+             if (targetButton) targetButton.classList.remove('active-touch');
         });
     }
 
-    // --- 2. 摄像头控制逻辑 (无文字修正版) ---
-    const videoContainer = document.querySelector('.video-container'); // 视频容器
-    const videoStream = document.getElementById('videoStream'); // img 标签
-    const startCameraButton = document.getElementById('startCameraButton'); // 开启按钮
-    const stopCameraButton = document.getElementById('stopCameraButton'); // 停止按钮
+    // 2. 速度滑块逻辑
+    const speedRange = document.getElementById('speedRange');
+    const speedValue = document.getElementById('speedValue');
 
-    let cameraStreaming = false; // 跟踪摄像头流是否激活
+    if (speedRange && speedValue) {
+        // 监听输入事件 (拖动时实时更新)
+        speedRange.addEventListener('input', (e) => {
+            const val = e.target.value;
+            speedValue.textContent = val;
+            setSpeed(val);
+        });
+    }
 
-    /**
-     * 设置摄像头UI状态。
-     * @param {'off'|'streaming'} state - 摄像头状态。
-     */
+    // 3. 摄像头控制逻辑
+    const videoContainer = document.querySelector('.video-container');
+    const videoStream = document.getElementById('videoStream');
+    const startCameraButton = document.getElementById('startCameraButton');
+    const stopCameraButton = document.getElementById('stopCameraButton');
+    let cameraStreaming = false;
+
     function setCameraState(state) {
-        // 每次状态改变，强制隐藏菜单，保证沉浸式体验
         videoContainer.classList.remove('show-controls');
-
         if (state === 'off') {
             cameraStreaming = false;
-            videoContainer.classList.remove('streaming'); // 移除 streaming 状态类
-
-            videoStream.src = ''; // 清空视频流源
-            videoStream.alt = "视频流已停止。点击开启摄像头";
-            videoStream.classList.add('video-placeholder'); // 恢复占位符样式
-
-            // 显示开启按钮，隐藏停止按钮
+            videoContainer.classList.remove('streaming');
+            videoStream.src = '';
+            videoStream.classList.add('video-placeholder');
             startCameraButton.classList.add('active');
             stopCameraButton.classList.remove('active');
-
-            startCameraButton.textContent = '开启摄像头';
             startCameraButton.disabled = false;
-
-            // 恢复停止按钮可用性
             stopCameraButton.disabled = false;
-
         } else if (state === 'streaming') {
             cameraStreaming = true;
-            videoContainer.classList.add('streaming'); // 添加 streaming 状态类
-            videoStream.classList.remove('video-placeholder'); // 移除占位符样式
-
-            // 隐藏开启按钮，显示停止按钮
+            videoContainer.classList.add('streaming');
+            videoStream.classList.remove('video-placeholder');
             startCameraButton.classList.remove('active');
             stopCameraButton.classList.add('active');
-
-            // 设置视频流源，加时间戳防止缓存
             videoStream.src = '/video_feed?t=' + Date.now();
-            videoStream.alt = '摄像头视频流';
         }
     }
 
-    // 初始设置摄像头状态为关闭
     setCameraState('off');
 
-    // 点击视频容器的逻辑：切换菜单显示/隐藏
     if (videoContainer) {
-        videoContainer.addEventListener('click', (event) => {
-            // 如果没在直播，不处理
-            if (!cameraStreaming) return;
-            videoContainer.classList.toggle('show-controls');
+        videoContainer.addEventListener('click', () => {
+            if (cameraStreaming) videoContainer.classList.toggle('show-controls');
         });
     }
 
-    // 开启摄像头逻辑
     if (startCameraButton) {
-        startCameraButton.addEventListener('click', (event) => {
-            event.stopPropagation(); // 防止冒泡触发容器点击
-
+        startCameraButton.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (!cameraStreaming) {
-                startCameraButton.textContent = '加载中...';
                 startCameraButton.disabled = true;
-
                 fetch('/camera/start', { method: 'POST' })
                 .then(r => r.json())
                 .then(data => {
-                    if (data.status === 'success') {
-                        setCameraState('streaming');
-                    } else {
-                        alert('启动失败');
-                        setCameraState('off');
-                    }
+                    if (data.status === 'success') setCameraState('streaming');
+                    else { alert('启动失败'); setCameraState('off'); }
                 })
-                .catch(e => {
-                    console.error(e);
-                    setCameraState('off');
-                });
+                .catch(() => setCameraState('off'));
             }
         });
     }
 
-    // 停止摄像头逻辑 (修复：不设置任何文字)
     if (stopCameraButton) {
-        stopCameraButton.addEventListener('click', (event) => {
-            event.stopPropagation(); // 防止冒泡
+        stopCameraButton.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (cameraStreaming) {
-                console.log("尝试停止摄像头流...");
-                // 仅禁用按钮，不修改文字，因为现在是小方块
                 stopCameraButton.disabled = true;
-
-                fetch('/camera/stop', {method: 'POST'})
-                .then(() => {
-                    setCameraState('off');
-                    stopCameraButton.disabled = false;
-                })
-                .catch(error => {
-                    setCameraState('off');
-                    stopCameraButton.disabled = false;
-                });
+                fetch('/camera/stop', { method: 'POST' })
+                .then(() => { setCameraState('off'); stopCameraButton.disabled = false; })
+                .catch(() => { setCameraState('off'); stopCameraButton.disabled = false; });
             }
         });
-    }
-
-    // --- 3. 文本命令发送 ---
-    const textCommandInput = document.getElementById('textCommandInput');
-    const sendTextCommandButton = document.getElementById('sendTextCommandButton');
-
-    if (sendTextCommandButton && textCommandInput) {
-        sendTextCommandButton.addEventListener('click', () => {
-            const text = textCommandInput.value.trim();
-            if (text) {
-                console.log("发送文本命令:", text);
-                fetch('/cmd', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: text })
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => { throw new Error(err.detail || `HTTP error! status: ${response.status}`); });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('文本命令发送成功:', data);
-                    textCommandInput.value = ''; // 清空输入框
-                })
-                .catch(error => console.error('发送文本命令失败:', error.message));
-            } else {
-                console.warn("文本命令为空。");
-            }
-        });
-        // 允许按回车键发送
-        textCommandInput.addEventListener('keypress', (event) => {
-            if (event.key === 'Enter') {
-                sendTextCommandButton.click();
-            }
-        });
-    }
-
-    // --- 4. 语音识别功能 (ASR WebSocket) ---
-    const startAsrButton = document.getElementById('startAsrButton');
-    const stopAsrButton = document.getElementById('stopAsrButton');
-    const asrOutput = document.getElementById('asrOutput');
-
-    let websocket;
-
-    // ASR WebSocket 连接管理
-    function connectAsrWebSocket() {
-        if (websocket && websocket.readyState === WebSocket.OPEN) {
-            console.log("WebSocket 已经连接。");
-            return;
-        }
-
-        // 获取当前域名和端口
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.host;
-        const wsUrl = `${protocol}//${host}/asr`;
-
-        websocket = new WebSocket(wsUrl);
-
-        websocket.onopen = (event) => {
-            console.log("ASR WebSocket 已连接:", event);
-            asrOutput.textContent = "等待语音...";
-            startAsrButton.textContent = '已连接'; // 更新按钮状态
-            startAsrButton.disabled = true;
-            stopAsrButton.disabled = false;
-        };
-
-        websocket.onmessage = (event) => {
-            console.log("ASR WebSocket 收到消息:", event.data);
-            asrOutput.textContent = event.data;
-        };
-
-        websocket.onerror = (event) => {
-            console.error("ASR WebSocket 错误:", event);
-            asrOutput.textContent = "语音识别服务错误。";
-            startAsrButton.textContent = '开始语音';
-            startAsrButton.disabled = false;
-            stopAsrButton.disabled = true;
-            if (websocket) websocket.close();
-        };
-
-        websocket.onclose = (event) => {
-            console.log("ASR WebSocket 已关闭:", event);
-            asrOutput.textContent = "语音识别服务已停止。";
-            startAsrButton.textContent = '开始语音';
-            startAsrButton.disabled = false;
-            stopAsrButton.disabled = true;
-            websocket = null;
-        };
-    }
-
-    function disconnectAsrWebSocket() {
-        if (websocket && websocket.readyState === WebSocket.OPEN) {
-            websocket.close();
-            console.log("ASR WebSocket 已请求关闭。");
-        } else {
-            console.log("ASR WebSocket 未连接或已关闭。");
-        }
-        startAsrButton.textContent = '开始语音';
-        startAsrButton.disabled = false;
-        stopAsrButton.disabled = true;
-    }
-
-
-    if (startAsrButton) {
-        startAsrButton.addEventListener('click', connectAsrWebSocket);
-    }
-    if (stopAsrButton) {
-        stopAsrButton.addEventListener('click', disconnectAsrWebSocket);
-    }
-    // 初始状态，停止按钮禁用
-    if (stopAsrButton) stopAsrButton.disabled = true;
-
-    // --- 5. 演示功能逻辑 ---
-    const demoSelect = document.getElementById('demoSelect');
-    const startDemoButton = document.getElementById('startDemoButton');
-    const stopDemoButton = document.getElementById('stopDemoButton');
-
-    if (startDemoButton && demoSelect) {
-        startDemoButton.addEventListener('click', () => {
-            const selectedDemo = demoSelect.value;
-            if (selectedDemo) {
-                startDemo(selectedDemo);
-            } else {
-                alert("请选择一个演示模式。");
-            }
-        });
-    }
-
-    if (stopDemoButton) {
-        stopDemoButton.addEventListener('click', stopDemo);
     }
 });
