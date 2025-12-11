@@ -43,6 +43,9 @@ DISTANCE_DETECTION_THRESHOLD = 20  # 距离小于此值时停车
 HC_SR_04_TIMEOUT = 0.03  # HC-SR04 超时时间，单位秒
 DISTANCE_MONITOR_INTERVAL = 0.1  # 距离检测间隔
 
+PWM_FREQ = 100        # 频率 100Hz
+DEFAULT_SPEED = 50    # 默认速度 50%
+
 # 运动模式常量
 MODE_FORWARD = 1
 MODE_BACK = 2

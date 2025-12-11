@@ -7,7 +7,7 @@ from app.config import (
     HC_SR_04_TRIG, HC_SR_04_ECHO,
     MODE_FORWARD, MODE_BACK, MODE_STOP,
     DEFAULT_TEMPERATURE, DISTANCE_BUFFER_SIZE, HC_SR_04_TIMEOUT,
-    EN1, EN2, EN3, EN4
+    EN1, EN2, EN3, EN4, PWM_FREQ, DEFAULT_SPEED
 )
 
 # GPIO 常量
@@ -26,6 +26,20 @@ class MotorControl(object):
             GPIO.setup(pin, OUT)
             GPIO.output(pin, LOW)
 
+        self.en_pins = [EN1, EN2, EN3, EN4]
+        self.pwms = []
+        for pin in self.en_pins:
+            GPIO.setup(pin, OUT)
+            pwm = GPIO.PWM(pin, PWM_FREQ)  # 创建 PWM
+            pwm.start(0)  # 初始占空比 0
+            self.pwms.append(pwm)
+
+        # 映射 PWM 到具体轮子 (根据测试结果: 6->LF, 13->LB, 19->RB, 26->RF)
+        self.pwm_lf = self.pwms[0]  # EN1
+        self.pwm_lb = self.pwms[1]  # EN2
+        self.pwm_rb = self.pwms[2]  # EN3
+        self.pwm_rf = self.pwms[3]  # EN4
+
         # 设置超声波传感器引脚
         GPIO.setup(HC_SR_04_TRIG, OUT)
         GPIO.setup(HC_SR_04_ECHO, IN)
@@ -40,6 +54,8 @@ class MotorControl(object):
     def cleanup(self):
         """清理GPIO引脚状态"""
         self.stop()
+        for pwm in self.pwms:
+            pwm.stop()
         GPIO.cleanup()
 
     def __enter__(self):
@@ -56,6 +72,15 @@ class MotorControl(object):
     @distance_detection_enabled.setter
     def distance_detection_enabled(self, value: bool):
         self._distance_detection_enabled = value
+
+    def set_speed(self, speed: int):
+        self._current_speed = max(0, min(100, speed))
+        self._apply_speed()
+
+    def _apply_speed(self):
+        for pwm in self.pwms:
+            pwm.ChangeDutyCycle(self._current_speed)
+
 
     # --- 私有电机控制方法 ---
     def __set_motor_state(self, motor_in1, motor_in2, mode):
@@ -108,6 +133,7 @@ class MotorControl(object):
         self._control_motor_pair(IN3, IN4, MODE_FORWARD)
         self._control_motor_pair(IN5, IN6, MODE_FORWARD)
         self._control_motor_pair(IN7, IN8, MODE_FORWARD)
+        self._apply_speed()
 
     def move_back(self):
         """小车向后直行"""
@@ -115,6 +141,7 @@ class MotorControl(object):
         self._control_motor_pair(IN3, IN4, MODE_BACK)
         self._control_motor_pair(IN5, IN6, MODE_BACK)
         self._control_motor_pair(IN7, IN8, MODE_BACK)
+        self._apply_speed()
 
     def move_left(self):  # 平移向左 (横向移动)
         """
@@ -128,6 +155,7 @@ class MotorControl(object):
         self._control_motor_pair(IN3, IN4, MODE_BACK)
         self._control_motor_pair(IN5, IN6, MODE_FORWARD)
         self._control_motor_pair(IN7, IN8, MODE_BACK)
+        self._apply_speed()
 
     def move_right(self):  # 平移向右 (横向移动)
         """
@@ -141,6 +169,7 @@ class MotorControl(object):
         self._control_motor_pair(IN3, IN4, MODE_FORWARD)
         self._control_motor_pair(IN5, IN6, MODE_BACK)
         self._control_motor_pair(IN7, IN8, MODE_FORWARD)
+        self._apply_speed()
 
     def turn_left(self):  # 原地左转
         """
@@ -152,6 +181,7 @@ class MotorControl(object):
         self._control_motor_pair(IN3, IN4, MODE_FORWARD)
         self._control_motor_pair(IN5, IN6, MODE_BACK)
         self._control_motor_pair(IN7, IN8, MODE_BACK)
+        self._apply_speed()
 
     def turn_right(self):  # 原地右转
         """
@@ -163,6 +193,7 @@ class MotorControl(object):
         self._control_motor_pair(IN3, IN4, MODE_BACK)
         self._control_motor_pair(IN5, IN6, MODE_FORWARD)
         self._control_motor_pair(IN7, IN8, MODE_FORWARD)
+        self._apply_speed()
 
     # --- 斜向移动 (修正后的麦克纳姆轮逻辑，基于所有轮子方向校正) ---
     def move_left_forward(self):  # 左前斜向
@@ -170,29 +201,35 @@ class MotorControl(object):
         self._control_motor_pair(IN3, IN4, MODE_FORWARD)
         self._control_motor_pair(IN5, IN6, MODE_STOP)
         self._control_motor_pair(IN7, IN8, MODE_BACK)
+        self._apply_speed()
 
     def move_right_forward(self):  # 右前斜向
         self._control_motor_pair(IN1, IN2, MODE_BACK)
         self._control_motor_pair(IN3, IN4, MODE_STOP)
         self._control_motor_pair(IN5, IN6, MODE_FORWARD)
         self._control_motor_pair(IN7, IN8, MODE_STOP)
+        self._apply_speed()
 
     def move_left_back(self):  # 左后斜向
         self._control_motor_pair(IN1, IN2, MODE_FORWARD)
         self._control_motor_pair(IN3, IN4, MODE_STOP)
         self._control_motor_pair(IN5, IN6, MODE_BACK)
         self._control_motor_pair(IN7, IN8, MODE_STOP)
+        self._apply_speed()
 
     def move_right_back(self):  # 右后斜向
         self._control_motor_pair(IN1, IN2, MODE_STOP)
         self._control_motor_pair(IN3, IN4, MODE_STOP)
         self._control_motor_pair(IN5, IN6, MODE_STOP)
         self._control_motor_pair(IN7, IN8, MODE_FORWARD)
+        self._apply_speed()
 
     def stop(self):
         """停止所有电机，将所有控制引脚置低"""
         for pin in [IN1, IN2, IN3, IN4, IN5, IN6, IN7, IN8]:
             GPIO.output(pin, LOW)
+        for pwm in self.pwms:
+            pwm.ChangeDutyCycle(0)
 
     def measure_distance(self):
         """优化后的HC-SR04超声波测距方法，返回厘米，并包含中值滤波。
