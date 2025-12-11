@@ -1,5 +1,5 @@
 # little_eighteen/app/wifi_setup_nm.py  （终极户外无网直控版）
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 import subprocess
 from app.network_manager_nm import deactivate_hotspot

@@ -42,6 +42,29 @@ function stopDemo() {
     .then(r => r.json()).then(d => console.log(d.message));
 }
 
+function toggleFullscreen() {
+    if (isIOS()) {
+        // iOS 专杀：隐藏状态栏 + 滚动条 + 键盘
+        document.body.classList.toggle('ios-fullscreen');
+        document.documentElement.scrollTop = 0; // 强制回顶
+        // 隐藏地址栏（Safari 专属）
+        window.scrollTo(0, 1);
+        console.log('iOS 伪全屏切换');
+    } else {
+        // 非 iOS：用标准 Fullscreen API
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen?.() ||
+            document.documentElement.webkitRequestFullscreen?.();
+        } else {
+            document.exitFullscreen?.() || document.webkitExitFullscreen?.();
+        }
+    }
+}
+
+// 检测 iOS
+function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
 
 // --- 页面加载完成后的事件绑定 ---
 document.addEventListener('DOMContentLoaded', () => {

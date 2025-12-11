@@ -195,25 +195,6 @@ class CommandExecutor:
 
     async def _distance_monitor_loop(self):
         """距离监控循环"""
-        # while self._running:
-        #     # --- 新增：检查距离检测宽限期 ---
-        #     if self._distance_monitor_grace_period_active:
-        #         if time.time() < self._distance_monitor_grace_period_end_time:
-        #             # 如果仍在宽限期内，则跳过距离检测和停止命令发送
-        #             time.sleep(DISTANCE_MONITOR_INTERVAL)
-        #             continue  # 跳过当前循环的其余部分，进入下一次迭代
-        #         else:
-        #             # 宽限期已结束，关闭宽限期标志
-        #             self._distance_monitor_grace_period_active = False
-        #             self.logger.info("距离检测宽限期结束，恢复正常检测。")
-        #
-        #     dist = self.control.measure_distance()
-        #     if dist is not None and dist != -1:
-        #         # print(f"距离: {dist}cm") # 保持原有的打印方式
-        #         if 0 < dist < DISTANCE_DETECTION_THRESHOLD:
-        #             self.logger.warning(f"检测到障碍物 ({dist}cm < {DISTANCE_DETECTION_THRESHOLD}cm), 发送停止命令!")
-        #             self.add_command("stop")  # 调用自身的 add_command，它会清空队列并添加停止
-        #     time.sleep(DISTANCE_MONITOR_INTERVAL)
         loop = asyncio.get_running_loop()
 
         while self._running:

@@ -6,6 +6,12 @@
     <title>智能小车控制中心</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css?v={{ range(1000, 9999) | random | int }}">
+    !-- PWA：添加到主屏幕后真全屏 -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="小十八控制">
+    <link rel="apple-touch-icon" href="/static/svgs/crab.svg"> <!-- 用你的蟹图标 -->
 </head>
 <body>
 <div class="container">
@@ -128,6 +134,8 @@
         <p>&copy; 小十八 智能小车控制中心. All rights reserved.</p>
     </footer>
 </div>
+
+
 
 <script src="/static/script.js?v={{ range(1000, 9999) | random | int }}"></script>
 </body>

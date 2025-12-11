@@ -213,11 +213,7 @@ class MotorControl(object):
 
         # 等待 ECHO 信号变为高电平 (起始时间)
         timeout_start = time.time() + HC_SR_04_TIMEOUT
-        # while GPIO.input(HC_SR_04_ECHO) == 0 and time.time() < timeout_start:
-        #     pulse_start_time = time.time()
-        #
-        # if time.time() >= timeout_start:
-        #     return -1  # 返回-1表示测量失败或超时
+
         while GPIO.input(HC_SR_04_ECHO) == 0:
             if time.time() > timeout_start:
                 return -1
@@ -225,11 +221,7 @@ class MotorControl(object):
 
         # 等待 ECHO 信号变为低电平 (结束时间)
         timeout_end = time.time() + HC_SR_04_TIMEOUT
-        # while GPIO.input(HC_SR_04_ECHO) == 1 and time.time() < timeout_end:
-        #     pulse_end_time = time.time()
-        #
-        # if time.time() >= timeout_end:
-        #     return -1  # 返回-1表示测量失败或超时
+
         while GPIO.input(HC_SR_04_ECHO) == 1:
             if time.time() > timeout_end:
                 return -1
@@ -279,77 +271,5 @@ if __name__ == '__main__':
         time.sleep(1)
         mc.stop()
         time.sleep(0.5)
-
-        # # 以下是原来的运动测试示例，您可以根据需要保留或删除
-        # print("\n--- 开始麦克纳姆轮运动测试 ---")
-        # print("前进")
-        # mc.move_forward()
-        # time.sleep(1)
-        # mc.stop()
-        # time.sleep(0.5)
-        #
-        # print("后退")
-        # mc.move_back()
-        # time.sleep(1)
-        # mc.stop()
-        # time.sleep(0.5)
-        #
-        # print("左平移")
-        # mc.move_left()
-        # time.sleep(1)
-        # mc.stop()
-        # time.sleep(0.5)
-        #
-        # print("右平移")
-        # mc.move_right()
-        # time.sleep(1)
-        # mc.stop()
-        # time.sleep(0.5)
-        #
-        # print("原地左转")
-        # mc.turn_left()
-        # time.sleep(1)
-        # mc.stop()
-        # time.sleep(0.5)
-        #
-        # print("原地右转")
-        # mc.turn_right()
-        # time.sleep(1)
-        # mc.stop()
-        # time.sleep(0.5)
-        #
-        # print("左前斜向")
-        # mc.move_left_forward()
-        # time.sleep(1)
-        # mc.stop()
-        # time.sleep(0.5)
-        #
-        # print("右前斜向")
-        # mc.move_right_forward()
-        # time.sleep(1)
-        # mc.stop()
-        # time.sleep(0.5)
-        #
-        # print("左后斜向")
-        # mc.move_left_back()
-        # time.sleep(1)
-        # mc.stop()
-        # time.sleep(0.5)
-        #
-        # print("右后斜向")
-        # mc.move_right_back()
-        # time.sleep(1)
-        # mc.stop()
-        # time.sleep(0.5)
-        #
-        # print("测试距离检测 (5秒)")
-        # mc.distance_detection_enabled = True
-        # for _ in range(50):  # 测量5秒，每0.1秒一次
-        #     dist = mc.measure_distance()
-        #     if dist is not None and dist != -1:  # 确保不是None和-1
-        #         print(f"Distance: {dist} cm")
-        #     time.sleep(0.1)
-        # mc.distance_detection_enabled = False  # 禁用检测
-        # print("--- 麦克纳姆轮运动测试结束 ---")
 
     print("程序退出。")
