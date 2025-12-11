@@ -7,7 +7,8 @@ from concurrent.futures import ThreadPoolExecutor
 # from queue import Queue, Empty  # 导入 Empty 异常
 from app.services.core import MotorControl
 from app.config import (
-    DISTANCE_DETECTION_THRESHOLD, DISTANCE_MONITOR_INTERVAL, COMMAND_EXECUTION_INTERVAL
+    DISTANCE_DETECTION_THRESHOLD, DISTANCE_MONITOR_INTERVAL, COMMAND_EXECUTION_INTERVAL, DISTANCE_MONITOR_INTERVAL,
+    OBSTACLE_BASE_DISTANCE, OBSTACLE_SPEED_FACTOR
 )
 import logging
 
@@ -46,8 +47,6 @@ class CommandExecutor:
 
         if self._monitor_task is None or self._monitor_task.done():
             self._monitor_task = asyncio.create_task(self._distance_monitor_loop())
-            # self._distance_monitor_thread = threading.Thread(target=self._distance_monitor_loop, daemon=True)
-            # self._distance_monitor_thread.start()
             self.logger.info("异步距离检测模块已启动")
 
     async def stop_tasks(self):
@@ -154,8 +153,13 @@ class CommandExecutor:
                 dist = await loop.run_in_executor(self._executor, self.control.measure_distance)
 
                 if dist is not None and dist != -1:
-                    if 0 < dist < DISTANCE_DETECTION_THRESHOLD:
-                        self.logger.warning(f"障碍物 {dist}cm < {DISTANCE_DETECTION_THRESHOLD}cm! 停车!")
+                    # 计算动态阈值
+                    current_speed = self.control.get_speed()
+                    # 公式：动态阈值 = 10cm + (速度 * 0.4)
+                    dynamic_threshold = OBSTACLE_BASE_DISTANCE + (current_speed * OBSTACLE_SPEED_FACTOR)
+
+                    if 0 < dist < dynamic_threshold:
+                        self.logger.warning(f"障碍物 {dist}cm < 动态阈值 {dynamic_threshold:.1f}cm (速度:{current_speed})! 紧急停车!")
                         await self.add_command("stop")
             except Exception as e:
                 self.logger.error(f"测距错误: {e}")
@@ -185,7 +189,7 @@ class VoiceCommandParser:
         }
         self.compiled_patterns = {cmd: re.compile("|".join(self.patterns[cmd])) for cmd in self.patterns}
 
-    def parse(self, text: str) -> str | None:
+    def parse(self, text: str):
         """从文本中解析出命令"""
         text = text.lower().strip()
         if not text:

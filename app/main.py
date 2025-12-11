@@ -203,6 +203,10 @@ class DemoCommand(BaseModel):
     demo_name: str
 
 
+class SpeedCommand(BaseModel):
+    speed: int
+
+
 # --- 摄像头 API 路由 (修改这里) ---
 @app.post("/camera/start")  # 这个路由只负责“启动”摄像头服务
 async def start_camera_api():
@@ -337,6 +341,15 @@ async def stop_demo():
     if await robot_demos.stop_demo():
         return {"status": "success"}
     return {"status": "info", "msg": "No demo running"}
+
+
+@app.post("/control/speed")
+async def adjust_speed(cmd: SpeedCommand):
+    """调整小车速度"""
+    if motor_controller:
+        motor_controller.set_speed(cmd.speed)
+        return {"status": "success", "current_speed": motor_controller.get_speed()}
+    return JSONResponse(status_code=503, content={"error": "Controller not initialized"})
 
 
 @app.get("/health")
