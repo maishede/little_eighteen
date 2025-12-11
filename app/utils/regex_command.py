@@ -159,7 +159,8 @@ class CommandExecutor:
                     dynamic_threshold = OBSTACLE_BASE_DISTANCE + (current_speed * OBSTACLE_SPEED_FACTOR)
 
                     if 0 < dist < dynamic_threshold:
-                        self.logger.warning(f"障碍物 {dist}cm < 动态阈值 {dynamic_threshold:.1f}cm (速度:{current_speed})! 紧急停车!")
+                        self.logger.warning(
+                            f"障碍物 {dist}cm < 动态阈值 {dynamic_threshold:.1f}cm (速度:{current_speed})! 紧急停车!")
                         await self.add_command("stop")
             except Exception as e:
                 self.logger.error(f"测距错误: {e}")
@@ -186,6 +187,8 @@ class VoiceCommandParser:
             "move_left_back": ['左后', '左后斜向'],
             "move_right_back": ['右后', '右后斜向'],
             "stop": ['停止', '停', '暂停', '别动'],
+            "SYSTEM_SWITCH_SMART": ['切换智能模式', '进入智能模式', '变身', '打开大脑'],
+            "SYSTEM_SWITCH_NORMAL": ['退出智能模式', '关闭大脑', '变回普通模式', '指令模式']
         }
         self.compiled_patterns = {cmd: re.compile("|".join(self.patterns[cmd])) for cmd in self.patterns}
 

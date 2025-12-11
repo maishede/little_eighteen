@@ -37,6 +37,10 @@ from app.utils.camera_streamer import CameraStreamer  # <-- 新增导入 CameraS
 
 from app.network_manager_nm import start_network_watcher
 from app.wifi_setup_nm import router as setup_router
+from app.services.llm_agent import SmartCarAgent
+
+IS_SMART_MODE = False
+llm_agent: SmartCarAgent = None
 
 # --- 日志设置 (保持不变) ---
 # 确保日志目录存在
@@ -84,7 +88,7 @@ async def lifespan(app: FastAPI):
     # 启动网络自动切换
     start_network_watcher()
 
-    global motor_controller, command_executor, voice_parser, robot_demos, camera_streamer
+    global motor_controller, command_executor, voice_parser, robot_demos, camera_streamer, llm_agent
     logger.info("应用启动中...")
     try:
         motor_controller = MotorControl()
@@ -104,6 +108,11 @@ async def lifespan(app: FastAPI):
         camera_streamer = CameraStreamer(CAMERA_INDEX, CAMERA_FPS, CAMERA_RESOLUTION, logger)
 
         app.include_router(setup_router)  # 加上这行
+        llm_agent = SmartCarAgent(
+            motor=motor_controller,
+            api_key="",
+            base_url="https://api.siliconflow.cn/v1/"  # 举例
+        )
         yield
     except Exception as e:
         logger.error(f"应用启动失败: {e}", exc_info=True)
@@ -265,16 +274,38 @@ async def asr(websocket: WebSocket):
     #     logger.error(f"ASR WebSocket 错误: {e}")
     # finally:
     #     logger.info("ASR WebSocket 连接关闭")
+    global IS_SMART_MODE
     await websocket.accept()
     try:
         while True:
-            data = await websocket.receive_text()
-            cmd = voice_parser.parse(data)
-            if cmd:
-                await command_executor.add_command(cmd)  # await add_command
-                await websocket.send_text(f"执行: {cmd}")
+            text = await websocket.receive_text()
+            logger.info(f"收到语音文本: {text}")
+            cmd = voice_parser.parse(text)
+            if cmd == "SYSTEM_SWITCH_SMART":
+                IS_SMART_MODE = True
+                await websocket.send_text("已切换到：智能模式 (Cloud AI)")
+                continue  # 跳过后续处理
+
+            elif cmd == "SYSTEM_SWITCH_NORMAL":
+                IS_SMART_MODE = False
+                await websocket.send_text("已切换到：指令模式 (Offline)")
+                continue
+            if not IS_SMART_MODE:
+                if cmd:
+                    await command_executor.add_command(cmd)  # await add_command
+                    await websocket.send_text(f"执行: {cmd}")
+                else:
+                    await websocket.send_text("未知命令")
             else:
-                await websocket.send_text("未知命令")
+                # === 在线智能模式 ===
+                # 不再进行正则匹配，直接把整句话扔给 LLM
+                await websocket.send_text("正在思考...")
+
+                # 这里可以接入 Cloud ASR (如果是音频流的话)
+                # 目前假设 text 已经是文本
+
+                response = await llm_agent.process_command(text)
+                await websocket.send_text(f"AI回复: {response}")
     except Exception:
         pass
 
