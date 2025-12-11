@@ -44,6 +44,8 @@ class MotorControl(object):
         GPIO.setup(HC_SR_04_TRIG, OUT)
         GPIO.setup(HC_SR_04_ECHO, IN)
 
+        self._current_speed = DEFAULT_SPEED
+
         self.stop()  # 初始化时停车
 
         self._distance_detection_enabled = True  # 内部控制距离检测是否开启
@@ -80,7 +82,6 @@ class MotorControl(object):
     def _apply_speed(self):
         for pwm in self.pwms:
             pwm.ChangeDutyCycle(self._current_speed)
-
 
     # --- 私有电机控制方法 ---
     def __set_motor_state(self, motor_in1, motor_in2, mode):
