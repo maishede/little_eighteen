@@ -27,6 +27,7 @@ except ImportError:
 
 class RhinoVoiceService:
     def __init__(self, command_executor):
+        print(f"DEBUG: RhinoVoiceService 正在初始化... MIC_INDEX={MICROPHONE_INDEX}")
         self.logger = logging.getLogger("RhinoVoice")
         self.executor = command_executor
         self._running = False

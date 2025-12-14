@@ -30,10 +30,7 @@ from app.config import (
 from app.services.core import MotorControl
 from app.utils.regex_command import CommandExecutor, VoiceCommandParser
 from app.utils.robot_demos import RobotDemos
-from app.utils.camera_streamer import CameraStreamer  # <-- 新增导入 CameraStreamer
-# from app.network_manager import auto_network_mode
-# import threading
-# from app.wifi_setup import router as setup_router
+from app.utils.camera_streamer import CameraStreamer
 
 from app.network_manager_nm import start_network_watcher
 from app.wifi_setup_nm import router as setup_router
@@ -41,8 +38,6 @@ from app.services.llm_agent import SmartCarAgent
 from app.services.voice_service import RhinoVoiceService
 
 IS_SMART_MODE = False
-llm_agent: SmartCarAgent = None
-rhino_service: RhinoVoiceService = None
 
 # --- 日志设置 (保持不变) ---
 # 确保日志目录存在
@@ -50,8 +45,11 @@ os.makedirs(LOG_DIR, exist_ok=True)
 log_file_path = os.path.join(LOG_DIR, LOG_FILE_NAME)
 
 # 创建 logger 实例
-logger = logging.getLogger("robot_app_logger")
+logger = logging.getLogger()
 logger.setLevel(LOG_LEVEL)
+
+if logger.hasHandlers():
+    logger.handlers.clear()
 
 # 创建一个 RotatingFileHandler，用于按大小切割日志文件
 file_handler = RotatingFileHandler(
@@ -73,6 +71,8 @@ console_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
 # --- 初始化模块实例为 None (在 lifespan 中初始化) ---
 motor_controller: MotorControl = None
 command_executor: CommandExecutor = None
@@ -81,6 +81,8 @@ robot_demos: RobotDemos = None
 # camera_streamer 的初始化调整：不再在 lifespan 中立即尝试打开摄像头
 # 而是在 camera_streamer 实例创建后，将 open/start_camera_capture 延迟到 API 调用
 camera_streamer: CameraStreamer = None
+llm_agent: SmartCarAgent = None
+rhino_service: RhinoVoiceService = None
 
 
 # --- 应用生命周期管理 (修改这里，不再在启动时尝试打开摄像头) ---
@@ -97,13 +99,6 @@ async def lifespan(app: FastAPI):
         command_executor = CommandExecutor(motor_controller, logger)
         voice_parser = VoiceCommandParser()
         robot_demos = RobotDemos(command_executor, logger)
-        # command_executor.start_threads()
-        #
-        # # CameraStreamer 实例在这里创建，但摄像头本身不会立即打开
-        # camera_streamer = CameraStreamer(CAMERA_INDEX, CAMERA_FPS, CAMERA_RESOLUTION, logger)
-        #
-        # logger.info("电机控制、命令执行模块、演示模块和摄像头流媒体实例初始化成功。")
-        # yield  # <-- yield 之前的代码是启动逻辑
         # 启动后台异步任务
         await command_executor.start_tasks()
 
@@ -115,8 +110,12 @@ async def lifespan(app: FastAPI):
             api_key="",
             base_url="https://api.siliconflow.cn/v1/"  # 举例
         )
-        rhino_service = RhinoVoiceService(command_executor)
-        rhino_service.start()
+        try:
+            logger.info("正在启动离线语音服务 (Rhino)...")
+            rhino_service = RhinoVoiceService(command_executor)
+            rhino_service.start()
+        except Exception as e:
+            logger.error(f"语音服务启动失败: {e}")
         yield
     except Exception as e:
         logger.error(f"应用启动失败: {e}", exc_info=True)
