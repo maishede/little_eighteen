@@ -85,3 +85,10 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
 LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "gpt-3.5-turbo")
+
+# ================= 语音控制配置 =================
+PICOVOICE_ACCESS_KEY = os.getenv("PICOVOICE_ACCESS_KEY", "")
+RHINO_CONTEXT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'models',
+                                  'little_18_zh_raspberry-pi_v4_0_0.rhn')
+# 麦克风设备索引，如果插了USB麦克风通常是 1 或 2，-1 表示默认
+MICROPHONE_INDEX = int(os.getenv("MICROPHONE_INDEX", -1))
