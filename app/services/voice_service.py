@@ -21,13 +21,12 @@ except ImportError:
     PICOVOICE_ACCESS_KEY = os.getenv("PICOVOICE_ACCESS_KEY", "")
     RHINO_CONTEXT_PATH = str(project_root / 'models' / 'little_18_zh_raspberry-pi_v4_0_0.rhn')
     RHINO_MODEL_PATH = str(project_root / 'models' / 'rhino_params_zh.pv')
-    MICROPHONE_INDEX = int(os.getenv("MICROPHONE_INDEX", 11))  # 默认为你测出的 11
+    MICROPHONE_INDEX = int(os.getenv("MICROPHONE_INDEX", 11))
     CommandExecutor = object
 
 
 class RhinoVoiceService:
     def __init__(self, command_executor):
-        print(f"DEBUG: RhinoVoiceService 正在初始化... MIC_INDEX={MICROPHONE_INDEX}")
         self.logger = logging.getLogger("RhinoVoice")
         self.executor = command_executor
         self._running = False
@@ -36,22 +35,21 @@ class RhinoVoiceService:
         self.recorder = None
         self.is_smart_mode = False
 
-        # 1. 定义中文指令映射表 (关键修改)
-        # 格式: { '语音动作': 'CommandExecutor指令' }
+        # 【关键修复 1】: 在初始化（主线程）时捕获事件循环
+        try:
+            self._main_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self._main_loop = None
+            self.logger.warning("初始化时未检测到运行的 Event Loop，可能处于调试模式")
+
+        # 中文指令映射
         self.cmd_map = {
-            '前进': 'move_forward',
-            '向前': 'move_forward',
-            '后退': 'move_back',
-            '向后': 'move_back',
-            '左转': 'turn_left',
-            '右转': 'turn_right',
-            '左移': 'move_left',
-            '右移': 'move_right',
-            '停止': 'stop',
-            '停': 'stop',
-            # 如果模型里有斜向移动，也可以加在这里
-            '左前': 'move_left_forward',
-            '右前': 'move_right_forward',
+            '前进': 'move_forward', '向前': 'move_forward',
+            '后退': 'move_back', '向后': 'move_back',
+            '左转': 'turn_left', '右转': 'turn_right',
+            '左移': 'move_left', '右移': 'move_right',
+            '停止': 'stop', '停': 'stop',
+            '左前': 'move_left_forward', '右前': 'move_right_forward',
         }
 
         if not PICOVOICE_ACCESS_KEY:
@@ -113,66 +111,51 @@ class RhinoVoiceService:
                     if inference.is_understood:
                         intent = inference.intent
                         slots = inference.slots
-                        # 打印原始识别结果
                         self.logger.info(f"✅ 语音识别: 意图=[{intent}] 参数={slots}")
                         self._handle_intent(intent, slots)
-                    else:
-                        # 没听懂 (可选：打印一下方便调试)
-                        # self.logger.debug("未能理解指令")
-                        pass
             except Exception as e:
                 if self._running:
                     self.logger.error(f"监听循环异常: {e}")
 
     def _handle_intent(self, intent, slots):
-        """核心逻辑：将中文意图映射为代码指令"""
         cmd_to_send = None
-        action = slots.get('action')  # 获取动作槽位
+        action = slots.get('action')
 
-        # ----------------------------------------------------
-        # 1. 处理系统控制 / 模式切换 (假设你的模型有这个意图)
-        # ----------------------------------------------------
+        # 模式切换
         if intent == 'system_control' or action in ['智能模式', '普通模式']:
             if action == '智能模式':
                 self.is_smart_mode = True
-                self.logger.info(">>> 🔄 切换到：智能模式 (等待云端接入)")
-                # 这里可以加一行语音播报
+                self.logger.info(">>> 🔄 切换到：智能模式")
             elif action == '普通模式':
                 self.is_smart_mode = False
                 self.logger.info(">>> 🔄 切换到：离线指令模式")
             return
 
-        # 如果是智能模式，暂不处理离线运动指令
         if self.is_smart_mode:
-            self.logger.info(f"忽略本地指令 '{action}' (当前处于智能模式)")
             return
 
-        # ----------------------------------------------------
-        # 2. 处理运动控制 (基于你的日志 car_control)
-        # ----------------------------------------------------
+        # 运动控制
         if intent == 'car_control':
             if action in self.cmd_map:
                 cmd_to_send = self.cmd_map[action]
             else:
-                self.logger.warning(f"⚠️ 未知动作: {action}，请在 cmd_map 中添加映射")
+                self.logger.warning(f"⚠️ 未知动作: {action}")
 
-        # ----------------------------------------------------
-        # 3. 发送指令给执行器
-        # ----------------------------------------------------
+        # 【关键修复 2】: 使用保存的 _main_loop 发送，并打印具体错误
         if cmd_to_send:
             self.logger.info(f"🚀 [执行映射] '{action}' -> '{cmd_to_send}'")
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # 这里真正触发电机
+
+            if self._main_loop and self._main_loop.is_running():
+                try:
                     asyncio.run_coroutine_threadsafe(
                         self.executor.add_command(cmd_to_send),
-                        loop
+                        self._main_loop
                     )
-                else:
-                    self.logger.warning("Event loop 未运行，无法发送指令")
-            except RuntimeError:
-                pass
+                    # 注意：这里成功放入队列不代表立即执行，但至少不会报错了
+                except Exception as e:
+                    self.logger.error(f"❌ 指令发送失败: {e}")
+            else:
+                self.logger.error("❌ 严重错误: 主线程 Event Loop 未运行或丢失，无法发送指令！")
 
 
 # ==========================================
@@ -181,24 +164,29 @@ class RhinoVoiceService:
 if __name__ == "__main__":
     import time
 
-    # 设置日志格式
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
-    # 模拟 CommandExecutor (为了看日志)
     class MockCommandExecutor:
         async def add_command(self, command: str):
-            # 这行日志证明集成成功！
             print(f"\n⚡⚡⚡ [后台执行器收到指令]: {command} ⚡⚡⚡\n")
 
 
-    # 启动 Loop
+    # 手动创建 Loop 供调试使用
     loop = asyncio.new_event_loop()
     threading.Thread(target=lambda: (asyncio.set_event_loop(loop), loop.run_forever()), daemon=True).start()
 
-    print("启动服务...")
-    service = RhinoVoiceService(MockCommandExecutor())
-    service.start()
+
+    # 模拟在 Async 上下文中初始化
+    async def init_debug():
+        print("启动服务...")
+        service = RhinoVoiceService(MockCommandExecutor())
+        service.start()
+        return service
+
+
+    future = asyncio.run_coroutine_threadsafe(init_debug(), loop)
+    service = future.result()
 
     try:
         while True: time.sleep(1)
