@@ -20,8 +20,8 @@ except ImportError:
     # 调试时的 Fallback
     PICOVOICE_ACCESS_KEY = os.getenv("PICOVOICE_ACCESS_KEY", "")
     # 注意这里路径要对
-    RHINO_CONTEXT_PATH = project_root / 'models' / 'little_18_zh_raspberry-pi_v4_0_0.rhn'
-    RHINO_MODEL_PATH = project_root / 'models' / 'rhino_params_zh.pv'
+    RHINO_CONTEXT_PATH = str(project_root / 'models' / 'little_18_zh_raspberry-pi_v4_0_0.rhn')
+    RHINO_MODEL_PATH = str(project_root / 'models' / 'rhino_params_zh.pv')
     MICROPHONE_INDEX = int(os.getenv("MICROPHONE_INDEX", -1))
     CommandExecutor = object
 
