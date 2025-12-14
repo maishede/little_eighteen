@@ -38,9 +38,11 @@ from app.utils.camera_streamer import CameraStreamer  # <-- 新增导入 CameraS
 from app.network_manager_nm import start_network_watcher
 from app.wifi_setup_nm import router as setup_router
 from app.services.llm_agent import SmartCarAgent
+from app.services.voice_service import RhinoVoiceService
 
 IS_SMART_MODE = False
 llm_agent: SmartCarAgent = None
+rhino_service: RhinoVoiceService = None
 
 # --- 日志设置 (保持不变) ---
 # 确保日志目录存在
@@ -88,7 +90,7 @@ async def lifespan(app: FastAPI):
     # 启动网络自动切换
     start_network_watcher()
 
-    global motor_controller, command_executor, voice_parser, robot_demos, camera_streamer, llm_agent
+    global motor_controller, command_executor, voice_parser, robot_demos, camera_streamer, llm_agent, rhino_service
     logger.info("应用启动中...")
     try:
         motor_controller = MotorControl()
@@ -113,6 +115,8 @@ async def lifespan(app: FastAPI):
             api_key="",
             base_url="https://api.siliconflow.cn/v1/"  # 举例
         )
+        rhino_service = RhinoVoiceService(command_executor)
+        rhino_service.start()
         yield
     except Exception as e:
         logger.error(f"应用启动失败: {e}", exc_info=True)
@@ -127,6 +131,8 @@ async def lifespan(app: FastAPI):
         # logger.info("应用已关闭。")
         logger.info("应用关闭中...")
         await command_executor.stop_tasks()  # 异步停止
+        if rhino_service:
+            rhino_service.stop()
         if camera_streamer:
             camera_streamer.stop_camera_capture()
         logger.info("再见。")
