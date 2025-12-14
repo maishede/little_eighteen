@@ -90,5 +90,6 @@ LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "gpt-3.5-turbo")
 PICOVOICE_ACCESS_KEY = os.getenv("PICOVOICE_ACCESS_KEY", "")
 RHINO_CONTEXT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'models',
                                   'little_18_zh_raspberry-pi_v4_0_0.rhn')
+RHINO_MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'models', 'rhino_params_zh.pv')
 # 麦克风设备索引，如果插了USB麦克风通常是 1 或 2，-1 表示默认
 MICROPHONE_INDEX = int(os.getenv("MICROPHONE_INDEX", -1))

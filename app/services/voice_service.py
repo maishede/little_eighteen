@@ -7,15 +7,22 @@ import asyncio
 import os
 import sys
 
+from pathlib import Path
+
+current_file_path = Path(__file__).resolve()
+project_root = current_file_path.parent.parent.parent
+
 # 尝试导入配置，如果失败（比如单独运行时路径不对），提供一些默认处理
 try:
-    from app.config import PICOVOICE_ACCESS_KEY, RHINO_CONTEXT_PATH, MICROPHONE_INDEX
+    from app.config import PICOVOICE_ACCESS_KEY, RHINO_CONTEXT_PATH, RHINO_MODEL_PATH, MICROPHONE_INDEX
     from app.utils.regex_command import CommandExecutor
 except ImportError:
-    # 仅用于调试时的 fallback，防止导入报错
+    # 调试时的 Fallback
     PICOVOICE_ACCESS_KEY = os.getenv("PICOVOICE_ACCESS_KEY", "")
-    RHINO_CONTEXT_PATH = "robot_context_pi.rhn"  # 假设在当前目录
-    MICROPHONE_INDEX = -1
+    # 注意这里路径要对
+    RHINO_CONTEXT_PATH = project_root / 'app' / 'models' / 'little_18_zh_raspberry-pi_v4_0_0.rhn'
+    RHINO_MODEL_PATH = project_root / 'app' / 'models' / 'rhino_params_zh.pv'
+    MICROPHONE_INDEX = int(os.getenv("MICROPHONE_INDEX", -1))
     CommandExecutor = object
 
 
@@ -39,11 +46,14 @@ class RhinoVoiceService:
         if not os.path.exists(RHINO_CONTEXT_PATH):
             self.logger.error(f"Rhino 模型文件未找到: {RHINO_CONTEXT_PATH}")
             return
-
+        if not os.path.exists(RHINO_MODEL_PATH):
+            self.logger.error(f"Rhino 中文参数文件未找到: {RHINO_MODEL_PATH}")
+            return
         try:
             self.rhino = pvrhino.create(
                 access_key=PICOVOICE_ACCESS_KEY,
                 context_path=RHINO_CONTEXT_PATH,
+                model_path=RHINO_MODEL_PATH,  # <--- 关键修改：指定加载中文模型
                 sensitivity=0.5,
                 endpoint_duration_sec=1.0,
                 require_endpoint=True
