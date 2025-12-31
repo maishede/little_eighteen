@@ -25,7 +25,8 @@ sys.path.append(str(project_root))
 # 导入配置和优化后的模块
 from app.config import (
     CAMERA_INDEX, CAMERA_FPS, CAMERA_RESOLUTION, APP_HOST, APP_PORT,
-    LOG_DIR, LOG_FILE_NAME, LOG_MAX_BYTES, LOG_BACKUP_COUNT, LOG_LEVEL
+    LOG_DIR, LOG_FILE_NAME, LOG_MAX_BYTES, LOG_BACKUP_COUNT, LOG_LEVEL,
+    LLM_API_KEY, LLM_BASE_URL, LLM_MODEL_NAME
 )
 from app.services.core import MotorControl
 from app.utils.regex_command import CommandExecutor, VoiceCommandParser
@@ -88,7 +89,6 @@ rhino_service: RhinoVoiceService = None
 # --- 应用生命周期管理 (修改这里，不再在启动时尝试打开摄像头) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # threading.Thread(target=auto_network_mode, daemon=True).start()
     # 启动网络自动切换
     start_network_watcher()
 
@@ -107,8 +107,9 @@ async def lifespan(app: FastAPI):
         app.include_router(setup_router)  # 加上这行
         llm_agent = SmartCarAgent(
             motor=motor_controller,
-            api_key="",
-            base_url="https://api.siliconflow.cn/v1/"  # 举例
+            api_key=LLM_API_KEY,
+            base_url=LLM_BASE_URL,
+            model_name=LLM_MODEL_NAME
         )
         try:
             logger.info("正在启动离线语音服务 (Rhino)...")
@@ -122,12 +123,6 @@ async def lifespan(app: FastAPI):
         logger.critical("应用程序核心服务初始化失败，正在退出！", exc_info=True)
         sys.exit(1)  # 强制退出应用
     finally:
-        # logger.info("应用关闭中...")
-        # command_executor.stop_threads()
-        # # 确保在应用关闭时，如果摄像头处于活动状态，也能被正确释放
-        # if camera_streamer:
-        #     camera_streamer.stop_camera_capture()
-        # logger.info("应用已关闭。")
         logger.info("应用关闭中...")
         await command_executor.stop_tasks()  # 异步停止
         if rhino_service:
@@ -222,17 +217,15 @@ class SpeedCommand(BaseModel):
 
 
 # --- 摄像头 API 路由 (修改这里) ---
-@app.post("/camera/start")  # 这个路由只负责“启动”摄像头服务
+@app.post("/camera/start")  # 这个路由只负责"启动"摄像头服务
 async def start_camera_api():
     """启动摄像头后台服务"""
     if not camera_streamer:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
-        # 尝试启动
     if camera_streamer.start_camera_capture():
         return {"status": "success", "message": "Camera started"}
     else:
-        # 如果启动失败（例如硬件被占用），返回 500
         raise HTTPException(status_code=500, detail="Failed to open camera hardware")
 
 
@@ -240,14 +233,11 @@ async def start_camera_api():
 async def video_feed():
     """获取视频流数据"""
     if camera_streamer and camera_streamer.is_streaming_active():
-        # 返回 StreamingResponse，使用 multipart/x-mixed-replace 格式
         return StreamingResponse(
             camera_streamer.generate_frames(),
             media_type="multipart/x-mixed-replace; boundary=frame"
         )
     else:
-        # 如果摄像头没开，返回 404 或 400，前端会显示占位图
-        # 这里返回 204 No Content 或者 404 比较合适，让前端知道没图
         return JSONResponse(status_code=404, content={"message": "Camera not running"})
 
 
@@ -262,23 +252,6 @@ async def stop_camera_api():
 # --- 其他路由定义 (保持不变) ---
 @app.websocket("/asr")
 async def asr(websocket: WebSocket):
-    # logger.info("ASR WebSocket 连接建立")
-    # try:
-    #     while True:
-    #         data = await websocket.receive_text()
-    #         logger.info(f"ASR WebSocket: 收到语音文本: {data}")
-    #         parsed_command = voice_parser.parse(data)
-    #         if parsed_command:
-    #             command_executor.add_command(parsed_command)
-    #             await websocket.send_text(f"已接收命令: {parsed_command}")
-    #             logger.info(f"ASR WebSocket: 已接收命令: {parsed_command}")
-    #         else:
-    #             await websocket.send_text("未识别出有效命令")
-    #             logger.info("ASR WebSocket: 未识别出有效命令")
-    # except Exception as e:
-    #     logger.error(f"ASR WebSocket 错误: {e}")
-    # finally:
-    #     logger.info("ASR WebSocket 连接关闭")
     global IS_SMART_MODE
     await websocket.accept()
     try:
@@ -311,32 +284,21 @@ async def asr(websocket: WebSocket):
 
                 response = await llm_agent.process_command(text)
                 await websocket.send_text(f"AI回复: {response}")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(f"ASR WebSocket 错误: {e}")
 
 
 @app.post("/control")
 async def control(command: ControlCommand):
-    # logger.info(f"API: 收到控制命令: {command.direction}")
-    # command_executor.add_command(command.direction)
-    # return JSONResponse({"status": "ok", "received_command": command.direction})
-    await command_executor.add_command(command.direction)  # await
+    await command_executor.add_command(command.direction)
     return {"status": "ok", "cmd": command.direction}
 
 
 @app.post("/cmd")
 async def cmd(voice_text: VoiceText):
-    # logger.info(f"API: 收到文本命令: {voice_text.text}")
-    # parsed_command = voice_parser.parse(voice_text.text)
-    # if parsed_command:
-    #     command_executor.add_command(parsed_command)
-    #     logger.info(f"API: 已解析并添加命令: {parsed_command}")
-    #     return JSONResponse({"status": "ok", "parsed_command": parsed_command})
-    # logger.info("API: 未能解析出有效命令。")
-    # return JSONResponse({"status": "no_command_parsed", "message": "未能解析出有效命令"})
     cmd = voice_parser.parse(voice_text.text)
     if cmd:
-        await command_executor.add_command(cmd)  # await
+        await command_executor.add_command(cmd)
         return {"status": "ok", "cmd": cmd}
     return {"status": "fail"}
 
@@ -350,15 +312,6 @@ async def read_root(request: Request):
 # --- 演示功能 API (保持不变) ---
 @app.post("/demo/start")
 async def start_demo(command: DemoCommand):
-    # if robot_demos:
-    #     if robot_demos.start_demo(command.demo_name):
-    #         return {"status": "success", "message": f"Demo '{command.demo_name}' started."}
-    #     else:
-    #         raise HTTPException(status_code=409,
-    #                             detail=f"Failed to start demo '{command.demo_name}'. Another demo might be running or demo not found.")
-    # else:
-    #     raise HTTPException(status_code=503, detail="Robot demos module not initialized.")
-    # await start_demo
     if await robot_demos.start_demo(command.demo_name):
         return {"status": "success"}
     raise HTTPException(409, "Demo failed to start")
@@ -366,14 +319,6 @@ async def start_demo(command: DemoCommand):
 
 @app.post("/demo/stop")
 async def stop_demo():
-    # if robot_demos:
-    #     if robot_demos.stop_demo():
-    #         return {"status": "success", "message": "Demo stopped."}
-    #     else:
-    #         return {"status": "info", "message": "No demo was running."}
-    # else:
-    #     raise HTTPException(status_code=503, detail="Robot demos module not initialized.")
-    # await stop_demo
     if await robot_demos.stop_demo():
         return {"status": "success"}
     return {"status": "info", "msg": "No demo running"}

@@ -4,6 +4,7 @@ import asyncio
 import traceback
 
 import websockets
+from app.config import ASR_SERVER_URL
 
 ASR_CHUNK_SIZE = "5, 10, 5"
 MODE = "2pass"  # offline, online, 2pass
@@ -16,7 +17,7 @@ async def ws_asr_server(websocket_recv):
     @websocket_recv: 来自用户的websocket
     @websocket_send: 发送给asr服务端的websocket
     """
-    async with websockets.connect("ws://192.168.31.157:10096", subprotocols=["binary"], ping_interval=None,
+    async with websockets.connect(ASR_SERVER_URL, subprotocols=["binary"], ping_interval=None,
                                   ssl=None) as websocket_send:
         # 发送websocket到asr服务器
         task1 = asyncio.create_task(send_websocket(websocket_recv=websocket_recv, websocket_send=websocket_send))

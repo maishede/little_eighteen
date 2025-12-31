@@ -213,41 +213,45 @@ if __name__ == "__main__":
     test_logger.setLevel(logging.INFO)
     test_logger.addHandler(logging.StreamHandler(sys.stdout))
 
-    with MotorControl() as mc_test:
-        executor = CommandExecutor(mc_test, test_logger)
-        parser = VoiceCommandParser()
-        executor.start_threads()
+    import asyncio
 
-        print("\n--- 模拟手动命令 ---")
-        executor.add_command("move_forward")
-        time.sleep(0.5)
-        executor.add_command("stop")
-        time.sleep(1)
-        executor.add_command("turn_left")  # Turn for 1 second
-        time.sleep(1.5)  # Wait for turn to complete and stop
+    async def async_main():
+        with MotorControl() as mc_test:
+            executor = CommandExecutor(mc_test, test_logger)
+            parser = VoiceCommandParser()
+            await executor.start_tasks()
 
-        print("\n--- 模拟语音命令 ---")
-        test_voice_texts = [
-            "小车前进", "请停止", "向左平移", "原地右转", "左前", "别动", "右后"
-        ]
+            print("\n--- 模拟手动命令 ---")
+            await executor.add_command("move_forward")
+            await asyncio.sleep(0.5)
+            await executor.add_command("stop")
+            await asyncio.sleep(1)
+            await executor.add_command("turn_left")  # Turn for 1 second
+            await asyncio.sleep(1.5)  # Wait for turn to complete and stop
 
-        for text in test_voice_texts:
-            print(f"\n模拟语音输入: '{text}'")
-            parsed_cmd = parser.parse(text)
-            if parsed_cmd:
-                executor.add_command(parsed_cmd)
-            time.sleep(0.5)
+            print("\n--- 模拟语音命令 ---")
+            test_voice_texts = [
+                "小车前进", "请停止", "向左平移", "原地右转", "左前", "别动", "右后"
+            ]
 
-        executor.command_queue.join()
-        test_logger.info("\n所有模拟命令执行完毕。")
+            for text in test_voice_texts:
+                print(f"\n模拟语音输入: '{text}'")
+                parsed_cmd = parser.parse(text)
+                if parsed_cmd:
+                    await executor.add_command(parsed_cmd)
+                await asyncio.sleep(0.5)
 
-        test_logger.info("\n模拟触发距离检测停止...")
-        # 模拟距离检测，假设 MotorControl 会调用 add_command("stop")
-        mc_test.distance_detection_enabled = True
-        # 这里无法直接模拟 MotorControl 内部的 distance_monitor_loop，
-        # 只是示意当它检测到时会调用 add_command("stop")
-        # 实际测试需要真实传感器触发
-        time.sleep(2)  # 留出时间让距离监控线程运行
+            test_logger.info("\n所有模拟命令执行完毕。")
 
-        executor.stop_threads()
-        test_logger.info("程序退出。")
+            test_logger.info("\n模拟触发距离检测停止...")
+            # 模拟距离检测，假设 MotorControl 会调用 add_command("stop")
+            mc_test.distance_detection_enabled = True
+            # 这里无法直接模拟 MotorControl 内部的 distance_monitor_loop，
+            # 只是示意当它检测到时会调用 add_command("stop")
+            # 实际测试需要真实传感器触发
+            await asyncio.sleep(2)  # 留出时间让距离监控线程运行
+
+            await executor.stop_tasks()
+            test_logger.info("程序退出。")
+
+    asyncio.run(async_main())

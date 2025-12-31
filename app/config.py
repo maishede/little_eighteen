@@ -94,3 +94,5 @@ RHINO_MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 # 麦克风设备索引，如果插了USB麦克风通常是 1 或 2，-1 表示默认
 MICROPHONE_INDEX = int(os.getenv("MICROPHONE_INDEX", -1))
 
+# ================= 网络配置 =================
+NETWORK_WAIT_SECONDS = int(os.getenv("NETWORK_WAIT_SECONDS", "15"))

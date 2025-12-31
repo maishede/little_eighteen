@@ -9,9 +9,10 @@ logger = logging.getLogger("llm_agent")
 
 
 class SmartCarAgent:
-    def __init__(self, motor: MotorControl, api_key: str, base_url: str):
+    def __init__(self, motor: MotorControl, api_key: str, base_url: str, model_name: str = "gpt-3.5-turbo"):
         self.motor = motor
         self.client = OpenAI(api_key=api_key, base_url=base_url)
+        self.model_name = model_name
 
         # 1. 定义小车的技能 (Function Calling 工具集)
         self.tools = [
@@ -69,7 +70,7 @@ class SmartCarAgent:
         try:
             # 2. 请求大模型
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",  # 或 deepseek-chat
+                model=self.model_name,  # 使用配置的模型名称
                 messages=messages,
                 tools=self.tools,
                 tool_choice="auto"
@@ -128,12 +129,11 @@ class SmartCarAgent:
             logger.error(f"LLM 错误: {e}")
             return "我的大脑有点短路了..."
 
-
-def listen_cloud(self, audio_file_path):
-    """调用云端 ASR"""
-    with open(audio_file_path, "rb") as audio_file:
-        transcript = self.client.audio.transcriptions.create(
-            model="whisper-1",
-            file=audio_file
-        )
-    return transcript.text
+    def listen_cloud(self, audio_file_path):
+        """调用云端 ASR"""
+        with open(audio_file_path, "rb") as audio_file:
+            transcript = self.client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file
+            )
+        return transcript.text

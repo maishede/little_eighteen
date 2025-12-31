@@ -8,6 +8,9 @@ HOTSPOT_NAME = "Little18-Hotspot"
 NORMAL_WIFI = "preconfigured"  # 你的连接名，就是 preconfigured.nmconnection 的 id
 logger = logging.getLogger(__name__)
 
+# 导入配置
+from app.config import NETWORK_WAIT_SECONDS
+
 def is_internet_reachable():
     """检测是否能访问外网"""
     try:
@@ -30,7 +33,7 @@ def deactivate_hotspot():
 
 def auto_network_mode():
     """开机后自动判断网络模式"""
-    time.sleep(15)  # 等待系统尝试连接 preconfigured
+    time.sleep(NETWORK_WAIT_SECONDS)  # 使用配置的等待时间
 
     if is_internet_reachable():
         logger.info("已连接外网，保持正常模式")
