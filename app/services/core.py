@@ -324,6 +324,13 @@ class MotorControl(object):
 
     # --- 斜向移动 (修正后的麦克纳姆轮逻辑，基于所有轮子方向校正) ---
     def move_left_forward(self):  # 左前斜向
+        """
+        左前斜向：向前 + 向左
+        RF: 停止
+        RB: 前进 (向前+向左的合成)
+        LB: 停止
+        LF: 后退 (向前+向左的合成)
+        """
         self._control_motor_pair(IN1, IN2, MODE_STOP)
         self._control_motor_pair(IN3, IN4, MODE_FORWARD)
         self._control_motor_pair(IN5, IN6, MODE_STOP)
@@ -331,6 +338,13 @@ class MotorControl(object):
         self._apply_speed()
 
     def move_right_forward(self):  # 右前斜向
+        """
+        右前斜向：向前 + 向右
+        RF: 后退 (向前+向右的合成)
+        RB: 停止
+        LB: 前进 (向前+向右的合成)
+        LF: 停止
+        """
         self._control_motor_pair(IN1, IN2, MODE_BACK)
         self._control_motor_pair(IN3, IN4, MODE_STOP)
         self._control_motor_pair(IN5, IN6, MODE_FORWARD)
@@ -338,6 +352,13 @@ class MotorControl(object):
         self._apply_speed()
 
     def move_left_back(self):  # 左后斜向
+        """
+        左后斜向：向后 + 向左
+        RF: 前进 (向后+向左的合成)
+        RB: 停止
+        LB: 后退 (向后+向左的合成)
+        LF: 停止
+        """
         self._control_motor_pair(IN1, IN2, MODE_FORWARD)
         self._control_motor_pair(IN3, IN4, MODE_STOP)
         self._control_motor_pair(IN5, IN6, MODE_BACK)
@@ -345,8 +366,15 @@ class MotorControl(object):
         self._apply_speed()
 
     def move_right_back(self):  # 右后斜向
+        """
+        右后斜向：向后 + 向右
+        RF: 停止
+        RB: 后退 (向后+向右的合成)
+        LB: 停止
+        LF: 前进 (向后+向右的合成)
+        """
         self._control_motor_pair(IN1, IN2, MODE_STOP)
-        self._control_motor_pair(IN3, IN4, MODE_STOP)
+        self._control_motor_pair(IN3, IN4, MODE_BACK)
         self._control_motor_pair(IN5, IN6, MODE_STOP)
         self._control_motor_pair(IN7, IN8, MODE_FORWARD)
         self._apply_speed()

@@ -111,6 +111,7 @@ class CommandExecutor:
 
                 if cmd in ["turn_left", "turn_right"]:
                     # 【关键修复】使用 try-finally 确保避障检测始终恢复
+                    # 转向时禁用避障（原地旋转，不前进）
                     self.control.distance_detection_enabled = False
                     try:
                         # 使用 getattr 获取同步方法，直接调用（因为只是 GPIO 电平切换，非常快）
@@ -120,6 +121,16 @@ class CommandExecutor:
                         self.control.stop()
                     finally:
                         # 无论是否发生异常，都要恢复避障检测
+                        self.control.distance_detection_enabled = True
+                        self.logger.debug("避障检测已恢复启用")
+
+                elif cmd in ["move_left", "move_right"]:
+                    # 左右平移时禁用避障（麦克纳姆轮横向移动，车头方向不变）
+                    self.control.distance_detection_enabled = False
+                    try:
+                        getattr(self.control, cmd)()
+                        await asyncio.sleep(0.5)  # 平移时间比转向短
+                    finally:
                         self.control.distance_detection_enabled = True
                         self.logger.debug("避障检测已恢复启用")
 
