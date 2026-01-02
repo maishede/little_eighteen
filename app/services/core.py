@@ -20,6 +20,23 @@ IN = GPIO.IN
 
 class MotorControl(object):
     def __init__(self):
+        self.logger = logging.getLogger("MotorControl")
+        self._is_real_hardware = True  # 默认为真硬件
+
+        # 检测是否在真实树莓派环境
+        try:
+            import RPi.GPIO as GPIO_Real
+            # 检查是否是模拟环境
+            if GPIO_Real.RPI_REVISION == 0:
+                self.logger.warning("⚠️ 检测到 RPi.GPIO 模拟环境（非树莓派），电机将不会实际运行")
+                self._is_real_hardware = False
+            else:
+                self._is_real_hardware = True
+                self.logger.info(f"✅ 检测到树莓派硬件 (Revision: {GPIO_Real.RPI_REVISION})")
+        except:
+            self._is_real_hardware = False
+            self.logger.warning("⚠️ RPi.GPIO 导入失败或非树莓派环境")
+
         GPIO.cleanup()
         GPIO.setmode(GPIO.BCM)
         # 设置电机控制引脚
@@ -48,6 +65,21 @@ class MotorControl(object):
         self._current_speed = max(MIN_SPEED_LIMIT, DEFAULT_SPEED)
 
         self.stop()  # 初始化时停车
+
+        # 打印初始化信息
+        self.logger.info("=" * 50)
+        self.logger.info("MotorControl 初始化完成")
+        self.logger.info(f"  默认速度: {self._current_speed}%")
+        self.logger.info(f"  PWM 频率: {PWM_FREQ} Hz")
+        self.logger.info(f"  最小速度限制: {MIN_SPEED_LIMIT}%")
+        self.logger.info("  GPIO 引脚配置:")
+        self.logger.info(f"    IN1={IN1}, IN2={IN2} -> 左前电机")
+        self.logger.info(f"    IN3={IN3}, IN4={IN4} -> 右前电机")
+        self.logger.info(f"    IN5={IN5}, IN6={IN6} -> 左后电机")
+        self.logger.info(f"    IN7={IN7}, IN8={IN8} -> 右后电机")
+        self.logger.info(f"    EN1={EN1} (LF), EN2={EN2} (LB), EN3={EN3} (RB), EN4={EN4} (RF)")
+        self.logger.info(f"  超声波: TRIG={HC_SR_04_TRIG}, ECHO={HC_SR_04_ECHO}")
+        self.logger.info("=" * 50)
 
         self._distance_detection_enabled = True  # 内部控制距离检测是否开启
         self.temperature = DEFAULT_TEMPERATURE
@@ -96,6 +128,8 @@ class MotorControl(object):
         self.pwm_rf.ChangeDutyCycle(speed_rf)
         self.pwm_rb.ChangeDutyCycle(speed_rb)
 
+        self.logger.debug(f"应用速度: LF={speed_lf:.1f}%, LB={speed_lb:.1f}%, RF={speed_rf:.1f}%, RB={speed_rb:.1f}%")
+
     # --- 私有电机控制方法 ---
     def __set_motor_state(self, motor_in1, motor_in2, mode):
         """
@@ -143,6 +177,10 @@ class MotorControl(object):
     # --- 公共运动方法 (麦克纳姆轮运动逻辑) ---
     def move_forward(self):
         """小车向前直行"""
+        self.logger.debug(f"move_forward 被调用, 当前速度: {self._current_speed}")
+        if not self._is_real_hardware:
+            self.logger.warning("⚠️ 非真实硬件环境，电机不会实际运行")
+
         self._control_motor_pair(IN1, IN2, MODE_FORWARD)
         self._control_motor_pair(IN3, IN4, MODE_FORWARD)
         self._control_motor_pair(IN5, IN6, MODE_FORWARD)

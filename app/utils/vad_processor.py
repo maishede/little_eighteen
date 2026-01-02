@@ -3,12 +3,19 @@
 语音活动检测 (VAD) 处理器
 使用 WebRTC VAD 进行人声检测，过滤车轮噪音
 """
-import numpy as np
 import logging
 import time
 from collections import deque
 from typing import Optional, Tuple, List
 from dataclasses import dataclass
+
+# numpy 是可选依赖
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    np = None
+    NUMPY_AVAILABLE = False
 
 try:
     import webrtcvad
@@ -254,18 +261,31 @@ class NoiseFilter:
         self.noise_floor = 0.0
         self.adaptation_rate = 0.1
 
-    def is_noise(self, audio_data: np.ndarray) -> bool:
+    def is_noise(self, audio_data) -> bool:
         """
         判断音频是否为噪音
 
         Args:
-            audio_data: 音频数据 (归一化到 [-1, 1])
+            audio_data: 音频数据 (归一化到 [-1, 1])，支持 numpy 数组或列表
 
         Returns:
             True 如果是噪音，False 如果是有效语音
         """
-        # 计算能量
-        energy = np.mean(audio_data ** 2)
+        # 兼容 numpy 和原生 Python
+        if NUMPY_AVAILABLE and np is not None and hasattr(audio_data, '__array__'):
+            # 使用 numpy 加速
+            energy = float(np.mean(audio_data ** 2))
+
+            # 频谱分析（简单的过零率）
+            zero_crossing_rate = float(np.mean(np.diff(np.sign(audio_data)) != 0))
+        else:
+            # 使用纯 Python 实现
+            energy = sum(x * x for x in audio_data) / len(audio_data)
+
+            # 计算过零率
+            sign_changes = sum(1 for i in range(1, len(audio_data))
+                             if (audio_data[i] >= 0) != (audio_data[i-1] >= 0))
+            zero_crossing_rate = sign_changes / len(audio_data)
 
         # 更新噪音底噪估计
         if energy < self.noise_floor:
@@ -275,9 +295,6 @@ class NoiseFilter:
 
         # 判断是否低于能量阈值
         is_below_threshold = energy < max(self.energy_threshold, self.noise_floor * 3)
-
-        # 频谱分析（简单的过零率）
-        zero_crossing_rate = np.mean(np.diff(np.sign(audio_data)) != 0)
 
         # 电机噪音通常有较低的过零率和持续的能量
         is_motor_noise = (energy > self.noise_floor * 2) and (zero_crossing_rate < 0.1)

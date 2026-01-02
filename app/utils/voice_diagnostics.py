@@ -3,13 +3,21 @@
 语音诊断工具
 用于分析麦克风输入、噪音水平、语音识别性能
 """
-import numpy as np
 import logging
 import time
+import math
 from collections import deque
 from dataclasses import dataclass
 from typing import Optional, List
 from pvrecorder import PvRecorder
+
+# numpy 是可选依赖
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    np = None
+    NUMPY_AVAILABLE = False
 
 
 @dataclass
@@ -62,16 +70,23 @@ class VoiceDiagnostics:
             self.recorder = None
             self.logger.info("语音诊断已停止")
 
-    def calculate_db(self, audio_data: np.ndarray) -> float:
+    def calculate_db(self, audio_data) -> float:
         """计算音频的分贝值"""
+        # 兼容 numpy 和原生 Python
+        if NUMPY_AVAILABLE and np is not None and hasattr(audio_data, '__array__'):
+            # 使用 numpy
+            rms = float(np.sqrt(np.mean(audio_data ** 2)))
+        else:
+            # 使用纯 Python
+            rms = math.sqrt(sum(x * x for x in audio_data) / len(audio_data))
+
         # 避免除零
-        rms = np.sqrt(np.mean(audio_data ** 2))
         if rms < 1e-10:
             return -100.0
 
         # 参考值：16-bit PCM 的最大值
         ref = 32768.0
-        db = 20 * np.log10(rms / ref)
+        db = 20 * math.log10(rms / ref)
         return max(-100.0, min(0.0, db))
 
     def calculate_snr(self, signal_db: float, noise_db: float) -> float:
@@ -80,19 +95,29 @@ class VoiceDiagnostics:
             return 100.0  # 静音环境
         return signal_db - noise_db
 
-    def detect_clipping(self, audio_data: np.ndarray) -> int:
+    def detect_clipping(self, audio_data) -> int:
         """检测音频削波"""
-        clipping = np.abs(audio_data) > (self.clipping_threshold * 32768)
-        return int(np.sum(clipping))
+        threshold = self.clipping_threshold * 32768
 
-    def analyze_audio_chunk(self, audio_data: np.ndarray) -> dict:
+        if NUMPY_AVAILABLE and np is not None and hasattr(audio_data, '__array__'):
+            # 使用 numpy
+            clipping = np.abs(audio_data) > threshold
+            return int(np.sum(clipping))
+        else:
+            # 使用纯 Python
+            return sum(1 for x in audio_data if abs(x) > threshold)
+
+    def analyze_audio_chunk(self, audio_data) -> dict:
         """分析单个音频块"""
-        # 转换为 numpy 数组并归一化
-        audio_normalized = np.array(audio_data, dtype=np.float32) / 32768.0
+        # 归一化音频数据
+        if NUMPY_AVAILABLE and np is not None:
+            audio_normalized = (np.array(audio_data, dtype=np.float32) / 32768.0).tolist()
+        else:
+            audio_normalized = [x / 32768.0 for x in audio_data]
 
         # 计算各种指标
-        audio_level = np.sqrt(np.mean(audio_normalized ** 2))  # RMS 电平
-        db = self.calculate_db(audio_normalized * 32768)
+        audio_level = math.sqrt(sum(x * x for x in audio_normalized) / len(audio_normalized))
+        db = self.calculate_db([x * 32768 for x in audio_normalized])
         clipping = self.detect_clipping(audio_normalized)
 
         # 更新统计
@@ -118,11 +143,16 @@ class VoiceDiagnostics:
 
         while (time.time() - start_time) * 1000 < duration_ms:
             pcm = self.recorder.read()
-            audio_normalized = np.array(pcm, dtype=np.float32) / 32768.0
-            db = self.calculate_db(audio_normalized * 32768)
+            # 归一化
+            if NUMPY_AVAILABLE and np is not None:
+                audio_normalized = (np.array(pcm, dtype=np.float32) / 32768.0).tolist()
+            else:
+                audio_normalized = [x / 32768.0 for x in pcm]
+
+            db = self.calculate_db([x * 32768 for x in audio_normalized])
             noise_readings.append(db)
 
-        avg_noise = np.mean(noise_readings)
+        avg_noise = sum(noise_readings) / len(noise_readings)
         self.noise_levels.append(avg_noise)
         self.logger.info(f"背景噪音水平: {avg_noise:.1f} dB")
 
@@ -134,7 +164,11 @@ class VoiceDiagnostics:
 
         # 获取最近的噪音水平
         noise_db = self.noise_levels[-1] if self.noise_levels else -60.0
-        signal_db = 20 * np.log10(signal_level * 32768) if signal_level > 1e-10 else -60.0
+
+        if signal_level > 1e-10:
+            signal_db = 20 * math.log10(signal_level * 32768)
+        else:
+            signal_db = -60.0
 
         # 计算信噪比
         snr = self.calculate_snr(signal_db, noise_db)
@@ -143,7 +177,7 @@ class VoiceDiagnostics:
         is_noisy = noise_db > self.noise_threshold_db
 
         # 获取最近的音频电平
-        avg_audio_level = np.mean(self.audio_levels) if self.audio_levels else 0.0
+        avg_audio_level = sum(self.audio_levels) / len(self.audio_levels) if self.audio_levels else 0.0
 
         # 生成建议
         recommendations = []

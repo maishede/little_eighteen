@@ -4,9 +4,16 @@ import logging
 import asyncio
 import os
 import sys
-import numpy as np
 from pathlib import Path
 from pvrecorder import PvRecorder
+
+# numpy 是可选依赖（仅 VAD 需要）
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    np = None
+    NUMPY_AVAILABLE = False
 
 # === 路径与配置加载 ===
 current_file_path = Path(__file__).resolve()
@@ -198,7 +205,7 @@ class RhinoVoiceService:
                 pcm = self.recorder.read()
 
                 # VAD 预处理：如果启用了 VAD，先进行语音检测
-                if self._vad_enabled and self.vad_processor:
+                if self._vad_enabled and self.vad_processor and NUMPY_AVAILABLE and np is not None:
                     # 将 PCM 数据转换为 VAD 所需的帧格式
                     audio_array = np.array(pcm, dtype=np.int16)
 
