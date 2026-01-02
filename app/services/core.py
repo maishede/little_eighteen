@@ -72,6 +72,12 @@ class MotorControl(object):
 
         self.stop()  # 初始化时停车
 
+        # 初始化距离检测相关属性
+        self._distance_detection_enabled = True  # 内部控制距离检测是否开启
+        self.temperature = DEFAULT_TEMPERATURE
+        self.distance_buffer = []
+        self.buffer_size = DISTANCE_BUFFER_SIZE
+
         # 打印初始化信息
         speed_source = "从运行时状态加载" if saved_speed != DEFAULT_SPEED else "使用默认值"
         self.logger.info("=" * 50)
@@ -152,11 +158,6 @@ class MotorControl(object):
                 self.logger.info(f"速度已保存到运行时状态: {speed}%")
             except Exception as e:
                 self.logger.error(f"保存运行时状态失败: {e}")
-
-        self._distance_detection_enabled = True  # 内部控制距离检测是否开启
-        self.temperature = DEFAULT_TEMPERATURE
-        self.distance_buffer = []
-        self.buffer_size = DISTANCE_BUFFER_SIZE
 
     def cleanup(self):
         """清理GPIO引脚状态"""

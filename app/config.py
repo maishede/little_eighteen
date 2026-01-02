@@ -109,7 +109,7 @@ RHINO_REQUIRE_ENDPOINT = os.getenv("RHINO_REQUIRE_ENDPOINT", "true").lower() == 
 
 # ================= VAD（语音活动检测）配置 =================
 # 是否启用 VAD 进行人声检测
-VAD_ENABLED = os.getenv("VAD_ENABLED", "true").lower() == "true"
+VAD_ENABLED = os.getenv("VAD_ENABLED", "false").lower() == "true"
 # VAD 敏感度 (0-3)，0 最敏感（容易误触发），3 最不敏感（需要大声说话）
 VAD_AGGRESSIVENESS = int(os.getenv("VAD_AGGRESSIVENESS", 2))
 # VAD 帧长度（毫秒），支持 10, 20, 30
