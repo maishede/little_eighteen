@@ -110,13 +110,18 @@ class CommandExecutor:
                 self.logger.info(f"执行: {cmd}")
 
                 if cmd in ["turn_left", "turn_right"]:
+                    # 【关键修复】使用 try-finally 确保避障检测始终恢复
                     self.control.distance_detection_enabled = False
-                    # 使用 getattr 获取同步方法，直接调用（因为只是 GPIO 电平切换，非常快）
-                    getattr(self.control, cmd)()
-                    # 关键优化：使用非阻塞 sleep
-                    await asyncio.sleep(1)
-                    self.control.stop()
-                    self.control.distance_detection_enabled = True
+                    try:
+                        # 使用 getattr 获取同步方法，直接调用（因为只是 GPIO 电平切换，非常快）
+                        getattr(self.control, cmd)()
+                        # 关键优化：使用非阻塞 sleep
+                        await asyncio.sleep(1)
+                        self.control.stop()
+                    finally:
+                        # 无论是否发生异常，都要恢复避障检测
+                        self.control.distance_detection_enabled = True
+                        self.logger.debug("避障检测已恢复启用")
 
                 elif cmd == "stop":
                     self.control.stop()
@@ -131,6 +136,8 @@ class CommandExecutor:
 
             except Exception as e:
                 self.logger.error(f"命令执行错误: {e}")
+                # 【关键修复】确保异常后避障检测状态正确
+                self.control.distance_detection_enabled = True
                 await asyncio.sleep(0.1)
 
     async def _distance_monitor_loop(self):

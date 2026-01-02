@@ -94,5 +94,30 @@ RHINO_MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 # 麦克风设备索引，如果插了USB麦克风通常是 1 或 2，-1 表示默认
 MICROPHONE_INDEX = int(os.getenv("MICROPHONE_INDEX", -1))
 
+# ================= 语音识别优化参数 =================
+# Rhino 灵敏度 (0.0 - 1.0)，越高越敏感但更容易误触发
+RHINO_SENSITIVITY = float(os.getenv("RHINO_SENSITIVITY", 0.5))
+# 说话结束检测时间（秒），越短响应越快但可能中断说话
+RHINO_ENDPOINT_DURATION = float(os.getenv("RHINO_ENDPOINT_DURATION", 0.5))
+# 是否需要检测到明确的说话结束（True 延迟更高但更准确）
+RHINO_REQUIRE_ENDPOINT = os.getenv("RHINO_REQUIRE_ENDPOINT", "true").lower() == "true"
+
+# ================= VAD（语音活动检测）配置 =================
+# 是否启用 VAD 进行人声检测
+VAD_ENABLED = os.getenv("VAD_ENABLED", "true").lower() == "true"
+# VAD 敏感度 (0-3)，0 最敏感（容易误触发），3 最不敏感（需要大声说话）
+VAD_AGGRESSIVENESS = int(os.getenv("VAD_AGGRESSIVENESS", 2))
+# VAD 帧长度（毫秒），支持 10, 20, 30
+VAD_FRAME_DURATION = int(os.getenv("VAD_FRAME_DURATION", 30))
+# 最小语音长度（毫秒），短于此长度认为是噪音
+VAD_MIN_SPEECH_DURATION = int(os.getenv("VAD_MIN_SPEECH_DURATION", 300))
+# 最小静音长度（毫秒），检测到静音多久后认为说话结束
+VAD_MIN_SILENCE_DURATION = int(os.getenv("VAD_MIN_SILENCE_DURATION", 500))
+
+# ================= 语音诊断配置 =================
+VOICE_DIAGNOSTICS_ENABLED = os.getenv("VOICE_DIAGNOSTICS_ENABLED", "false").lower() == "true"
+# 噪音阈值（分贝），高于此值认为是噪音环境
+NOISE_THRESHOLD_DB = float(os.getenv("NOISE_THRESHOLD_DB", 50.0))
+
 # ================= 网络配置 =================
 NETWORK_WAIT_SECONDS = int(os.getenv("NETWORK_WAIT_SECONDS", "15"))
