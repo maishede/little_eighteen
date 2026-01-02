@@ -124,5 +124,11 @@ VOICE_DIAGNOSTICS_ENABLED = os.getenv("VOICE_DIAGNOSTICS_ENABLED", "false").lowe
 # 噪音阈值（分贝），高于此值认为是噪音环境
 NOISE_THRESHOLD_DB = float(os.getenv("NOISE_THRESHOLD_DB", 50.0))
 
+# ================= 音频采样配置 =================
+# 是否启用音频采样（用于收集噪音样本进行分析）
+AUDIO_SAMPLING_ENABLED = os.getenv("AUDIO_SAMPLING_ENABLED", "false").lower() == "true"
+# 采样目录
+AUDIO_SAMPLE_DIR = os.path.join(DATA_DIR, 'audio_samples')
+
 # ================= 网络配置 =================
 NETWORK_WAIT_SECONDS = int(os.getenv("NETWORK_WAIT_SECONDS", "15"))

@@ -347,6 +347,33 @@ async def health():
     return JSONResponse({"status": "alive"})
 
 
+# --- 音频采样 API ---
+@app.get("/audio/samples/stats")
+async def get_audio_sample_stats():
+    """获取音频采样统计信息"""
+    if rhino_service and rhino_service.sampler:
+        stats = rhino_service.sampler.get_statistics()
+        return JSONResponse({"status": "success", "data": stats})
+    return JSONResponse({"status": "error", "message": "Audio sampler not enabled"}, status_code=503)
+
+
+@app.post("/audio/samples/clear")
+async def clear_audio_samples(sample_type: str = None):
+    """清空音频样本
+
+    Args:
+        sample_type: 要清空的样本类型 (motor, wheel_noise, speech, mixed, background)
+                     None 表示清空所有类型
+    """
+    if rhino_service and rhino_service.sampler:
+        rhino_service.sampler.clear_samples(sample_type)
+        return JSONResponse({
+            "status": "success",
+            "message": f"Cleared samples: {sample_type or 'all'}"
+        })
+    return JSONResponse({"status": "error", "message": "Audio sampler not enabled"}, status_code=503)
+
+
 if __name__ == '__main__':
     logger.info(f"启动 Uvicorn 服务器在 {APP_HOST}:{APP_PORT}")
     uvicorn.run(app, host=APP_HOST, port=APP_PORT)

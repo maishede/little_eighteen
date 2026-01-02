@@ -25,11 +25,12 @@ try:
         RHINO_SENSITIVITY, RHINO_ENDPOINT_DURATION, RHINO_REQUIRE_ENDPOINT,
         VAD_ENABLED, VAD_AGGRESSIVENESS, VAD_FRAME_DURATION,
         VAD_MIN_SPEECH_DURATION, VAD_MIN_SILENCE_DURATION,
-        VOICE_DIAGNOSTICS_ENABLED, NOISE_THRESHOLD_DB
+        VOICE_DIAGNOSTICS_ENABLED, NOISE_THRESHOLD_DB, AUDIO_SAMPLING_ENABLED
     )
     from app.utils.regex_command import CommandExecutor
     from app.utils.vad_processor import VADProcessor, NoiseFilter, WEBRTC_VAD_AVAILABLE
     from app.utils.voice_diagnostics import VoiceDiagnostics
+    from app.utils.audio_sampler import AudioSampler, SamplingController
 except ImportError:
     # 调试 Fallback
     import os
@@ -48,11 +49,14 @@ except ImportError:
     VAD_MIN_SILENCE_DURATION = 500
     VOICE_DIAGNOSTICS_ENABLED = False
     NOISE_THRESHOLD_DB = 50.0
+    AUDIO_SAMPLING_ENABLED = False
     CommandExecutor = object
     VADProcessor = None
     NoiseFilter = None
     WEBRTC_VAD_AVAILABLE = False
     VoiceDiagnostics = None
+    AudioSampler = None
+    SamplingController = None
 
 
 class RhinoVoiceService:
@@ -71,6 +75,11 @@ class RhinoVoiceService:
         except RuntimeError:
             self._main_loop = None
             self.logger.warning("初始化时未检测到运行的 Event Loop，可能处于调试模式")
+
+        # 音频采样器（可选功能）
+        self.sampler: AudioSampler = None
+        self.sampling_controller: SamplingController = None
+        self._sampling_enabled = AUDIO_SAMPLING_ENABLED
 
         # 中文指令映射
         self.cmd_map = {
@@ -151,6 +160,24 @@ class RhinoVoiceService:
             except Exception as e:
                 self.logger.warning(f"诊断工具初始化失败: {e}")
 
+        # 初始化音频采样器
+        if self._sampling_enabled and AudioSampler and SamplingController:
+            try:
+                self.sampler = AudioSampler(
+                    max_samples_per_type=20,
+                    sample_duration=2.0,
+                    sample_rate=16000,
+                    logger=self.logger
+                )
+                self.sampling_controller = SamplingController(
+                    sampler=self.sampler,
+                    logger=self.logger
+                )
+                self.logger.info("音频采样器已启用")
+            except Exception as e:
+                self.logger.warning(f"音频采样器初始化失败: {e}")
+                self._sampling_enabled = False
+
     def start(self):
         if not self.rhino: return
         if self._running: return
@@ -162,6 +189,10 @@ class RhinoVoiceService:
                 frame_length=self.rhino.frame_length
             )
             self.recorder.start()
+
+            # 将 recorder 传递给采样控制器
+            if self.sampling_controller:
+                self.sampling_controller.set_recorder(self.recorder)
 
             self._thread = threading.Thread(target=self._listen_loop, daemon=True)
             self._thread.start()
@@ -276,6 +307,11 @@ class RhinoVoiceService:
         cmd_to_send = None
         action = slots.get('action')
 
+        # 获取当前速度用于采样
+        current_speed = None
+        if self._sampling_enabled and self.executor and hasattr(self.executor, 'control'):
+            current_speed = self.executor.control.get_speed()
+
         # 模式切换
         if intent == 'system_control' or action in ['智能模式', '普通模式']:
             if action == '智能模式':
@@ -293,12 +329,19 @@ class RhinoVoiceService:
         if intent == 'car_control':
             if action in self.cmd_map:
                 cmd_to_send = self.cmd_map[action]
+                # 停止命令时重置采样状态
+                if cmd_to_send == 'stop' and self._sampling_enabled and self.sampling_controller:
+                    self.sampling_controller.on_stop()
             else:
                 self.logger.warning(f"⚠️ 未知动作: {action}")
 
         # 【关键修复 2】: 使用保存的 _main_loop 发送，并打印具体错误
         if cmd_to_send:
             self.logger.info(f"🚀 [执行映射] '{action}' -> '{cmd_to_send}'")
+
+            # 触发音频采样
+            if self._sampling_enabled and self.sampling_controller:
+                self.sampling_controller.on_command_start(cmd_to_send, current_speed)
 
             if self._main_loop and self._main_loop.is_running():
                 try:
