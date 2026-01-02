@@ -333,6 +333,14 @@ async def adjust_speed(cmd: SpeedCommand):
     return JSONResponse(status_code=503, content={"error": "Controller not initialized"})
 
 
+@app.get("/control/speed")
+async def get_speed():
+    """获取当前速度"""
+    if motor_controller:
+        return {"status": "success", "current_speed": motor_controller.get_speed()}
+    return JSONResponse(status_code=503, content={"error": "Controller not initialized"})
+
+
 @app.get("/health")
 async def health():
     logger.info("API: 健康检查请求。")

@@ -26,26 +26,34 @@ function sendCommand(command) {
 
 /**
  * 发送速度设置命令到后端
- * 使用节流防止滑动时请求过于频繁
+ * 使用防抖：只在用户停止拖动后才发送，避免频繁请求
  */
-let lastSpeedTime = 0;
-const speedThrottleInterval = 100; // 100ms 发送一次
+let speedDebounceTimer = null;
+const speedDebounceDelay = 300; // 停止拖动 300ms 后才发送
 
 function setSpeed(speedVal) {
-    const currentTime = Date.now();
-    if (currentTime - lastSpeedTime < speedThrottleInterval) {
-        return;
+    // 清除之前的定时器
+    if (speedDebounceTimer) {
+        clearTimeout(speedDebounceTimer);
     }
-    lastSpeedTime = currentTime;
 
-    fetch(`/control/speed`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ speed: parseInt(speedVal) })
-    })
-    .then(r => r.json())
-    .then(data => console.log('速度已更新:', data))
-    .catch(e => console.error('调速失败:', e));
+    // 更新显示（立即）
+    document.getElementById('speedValue').textContent = speedVal;
+
+    // 设置新的定时器
+    speedDebounceTimer = setTimeout(() => {
+        // 确保速度不低于 20%（电机启动最低速度）
+        const safeSpeed = Math.max(20, parseInt(speedVal));
+
+        fetch(`/control/speed`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ speed: safeSpeed })
+        })
+        .then(r => r.json())
+        .then(data => console.log('速度已更新:', data))
+        .catch(e => console.error('调速失败:', e));
+    }, speedDebounceDelay);
 }
 
 // 页面加载完成
@@ -85,6 +93,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const speedValue = document.getElementById('speedValue');
 
     if (speedRange && speedValue) {
+        // 页面加载时从服务器获取当前保存的速度
+        fetch('/control/speed')
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success' && data.current_speed !== undefined) {
+                    const savedSpeed = data.current_speed;
+                    speedRange.value = savedSpeed;
+                    speedValue.textContent = savedSpeed;
+                    console.log('已加载保存的速度:', savedSpeed + '%');
+                }
+            })
+            .catch(e => console.error('加载速度失败:', e));
+
         // 监听输入事件 (拖动时实时更新)
         speedRange.addEventListener('input', (e) => {
             const val = e.target.value;

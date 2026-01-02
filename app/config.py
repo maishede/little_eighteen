@@ -81,6 +81,11 @@ LOG_MAX_BYTES = 50 * 1024 * 1024
 LOG_BACKUP_COUNT = 5
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
+# ================= 持久化存储配置 =================
+# 运行时状态数据目录（用于存储用户运行时修改的设置，如速度等）
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data')
+RUNTIME_STATE_FILE = os.path.join(DATA_DIR, 'runtime_state.json')
+
 # ================= 🤖 LLM 智能体配置 =================
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")

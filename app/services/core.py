@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import time
 import statistics
+import json
+import os
 import RPi.GPIO as GPIO
 from app.config import (
     IN1, IN2, IN3, IN4, IN5, IN6, IN7, IN8,
@@ -8,7 +10,8 @@ from app.config import (
     MODE_FORWARD, MODE_BACK, MODE_STOP,
     DEFAULT_TEMPERATURE, DISTANCE_BUFFER_SIZE, HC_SR_04_TIMEOUT,
     EN1, EN2, EN3, EN4, PWM_FREQ, DEFAULT_SPEED, MIN_SPEED_LIMIT,
-    CORRECTION_LF, CORRECTION_LB, CORRECTION_RF, CORRECTION_RB
+    CORRECTION_LF, CORRECTION_LB, CORRECTION_RF, CORRECTION_RB,
+    RUNTIME_STATE_FILE, DATA_DIR
 )
 
 # GPIO 常量
@@ -20,10 +23,11 @@ IN = GPIO.IN
 
 class MotorControl(object):
     def __init__(self):
+        import logging
+        import threading
         self.logger = logging.getLogger("MotorControl")
         self._is_real_hardware = True  # 默认为真硬件
-
-        # 检测是否在真实树莓派环境
+        self._save_lock = threading.Lock()  # 文件保存锁，防止并发问题
         try:
             import RPi.GPIO as GPIO_Real
             # 检查是否是模拟环境
@@ -62,14 +66,17 @@ class MotorControl(object):
         GPIO.setup(HC_SR_04_TRIG, OUT)
         GPIO.setup(HC_SR_04_ECHO, IN)
 
-        self._current_speed = max(MIN_SPEED_LIMIT, DEFAULT_SPEED)
+        # 加载保存的速度
+        saved_speed = self._load_speed()
+        self._current_speed = max(MIN_SPEED_LIMIT, saved_speed)
 
         self.stop()  # 初始化时停车
 
         # 打印初始化信息
+        speed_source = "从运行时状态加载" if saved_speed != DEFAULT_SPEED else "使用默认值"
         self.logger.info("=" * 50)
         self.logger.info("MotorControl 初始化完成")
-        self.logger.info(f"  默认速度: {self._current_speed}%")
+        self.logger.info(f"  当前速度: {self._current_speed}% ({speed_source})")
         self.logger.info(f"  PWM 频率: {PWM_FREQ} Hz")
         self.logger.info(f"  最小速度限制: {MIN_SPEED_LIMIT}%")
         self.logger.info("  GPIO 引脚配置:")
@@ -80,6 +87,71 @@ class MotorControl(object):
         self.logger.info(f"    EN1={EN1} (LF), EN2={EN2} (LB), EN3={EN3} (RB), EN4={EN4} (RF)")
         self.logger.info(f"  超声波: TRIG={HC_SR_04_TRIG}, ECHO={HC_SR_04_ECHO}")
         self.logger.info("=" * 50)
+
+    def _load_speed(self) -> int:
+        """从文件加载保存的速度"""
+        try:
+            # 检查是否有旧文件需要迁移
+            old_settings_file = os.path.join(DATA_DIR, 'settings.json')
+            if os.path.exists(old_settings_file) and not os.path.exists(RUNTIME_STATE_FILE):
+                self.logger.info("检测到旧版本 settings.json，正在迁移到 runtime_state.json...")
+                try:
+                    with open(old_settings_file, 'r', encoding='utf-8') as f:
+                        old_data = json.load(f)
+                    # 保存到新文件
+                    self._save_speed(old_data.get('speed', DEFAULT_SPEED))
+                    # 删除旧文件
+                    os.remove(old_settings_file)
+                    self.logger.info("迁移完成，旧文件已删除")
+                except Exception as migrate_error:
+                    self.logger.warning(f"迁移失败: {migrate_error}，将直接从旧文件读取")
+                    # 迁移失败则直接读取旧文件
+                    with open(old_settings_file, 'r', encoding='utf-8') as f:
+                        state = json.load(f)
+                        speed = state.get('speed', DEFAULT_SPEED)
+                        speed = max(MIN_SPEED_LIMIT, min(100, speed))
+                        return speed
+
+            # 从新文件读取
+            if os.path.exists(RUNTIME_STATE_FILE):
+                with open(RUNTIME_STATE_FILE, 'r', encoding='utf-8') as f:
+                    state = json.load(f)
+                    speed = state.get('speed', DEFAULT_SPEED)
+                    # 确保速度在有效范围内
+                    speed = max(MIN_SPEED_LIMIT, min(100, speed))
+                    self.logger.info(f"从运行时状态加载速度: {speed}%")
+                    return speed
+        except Exception as e:
+            self.logger.warning(f"加载运行时状态失败: {e}，使用默认值")
+        return DEFAULT_SPEED
+
+    def _save_speed(self, speed: int):
+        """保存速度到文件（带锁，防止并发问题）"""
+        with self._save_lock:  # 使用锁确保只有一个线程能写入文件
+            try:
+                # 确保 data 目录存在
+                os.makedirs(DATA_DIR, exist_ok=True)
+
+                # 读取现有状态
+                state = {}
+                if os.path.exists(RUNTIME_STATE_FILE):
+                    with open(RUNTIME_STATE_FILE, 'r', encoding='utf-8') as f:
+                        state = json.load(f)
+
+                # 只在值真正变化时才写入（避免不必要的 I/O）
+                if state.get('speed') == speed:
+                    return
+
+                # 更新速度
+                state['speed'] = speed
+
+                # 保存到文件
+                with open(RUNTIME_STATE_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(state, f, indent=2, ensure_ascii=False)
+
+                self.logger.info(f"速度已保存到运行时状态: {speed}%")
+            except Exception as e:
+                self.logger.error(f"保存运行时状态失败: {e}")
 
         self._distance_detection_enabled = True  # 内部控制距离检测是否开启
         self.temperature = DEFAULT_TEMPERATURE
@@ -112,6 +184,8 @@ class MotorControl(object):
         safe_speed = max(MIN_SPEED_LIMIT, min(100, speed))
         self._current_speed = safe_speed
         self._apply_speed()
+        # 保存速度到文件
+        self._save_speed(safe_speed)
 
     def get_speed(self):
         return self._current_speed
